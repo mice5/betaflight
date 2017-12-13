@@ -34,6 +34,10 @@
 #define TARGET_BOARD_IDENTIFIER "SOUL"
 #define USBD_PRODUCT_STRING     "DemonSoulF4"
 
+#elif defined(SOULF5)
+#define TARGET_BOARD_IDENTIFIER "SOUL"
+#define USBD_PRODUCT_STRING     "DemonSoulF5"
+
 #elif defined(PODIUMF4)
 #define TARGET_BOARD_IDENTIFIER "PODI"
 #define USBD_PRODUCT_STRING     "PodiumF4"
@@ -63,6 +67,8 @@
 #elif defined(SOULF4)
 #define BEEPER                  PB6
 #define BEEPER_INVERTED
+#elif defined(SOULF5)
+#define BEEPER                  NONE
 #else
 #define LED1_PIN                PB4
 // Leave beeper here but with none as io - so disabled unless mapped.
@@ -96,7 +102,7 @@
 #define GYRO_1_CS_PIN           ICM20601_CS_PIN
 #endif
 
-#if defined(SOULF4)
+#if defined(SOULF4) || defined(SOULF5)
 #define USE_GYRO_SPI_MPU6000
 #define GYRO_MPU6000_ALIGN      CW180_DEG
 
@@ -275,6 +281,9 @@
 #elif defined(AIRBOTF4) || defined(AIRBOTF4SD)
 #define USABLE_TIMER_CHANNEL_COUNT 13
 #define USED_TIMERS             ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(5) | TIM_N(8) | TIM_N(12) )
+#elif defined(SOULF5)
+#define USABLE_TIMER_CHANNEL_COUNT 12
+#define USED_TIMERS             ( TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(5) | TIM_N(8) | TIM_N(12) )
 #else
 #define USABLE_TIMER_CHANNEL_COUNT 12
 #define USED_TIMERS             ( TIM_N(2) | TIM_N(3) | TIM_N(5) | TIM_N(8) | TIM_N(12) )
