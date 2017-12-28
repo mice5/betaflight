@@ -33,6 +33,9 @@
 #include "sensors/acceleration.h"
 #include "sensors/gyro.h"
 
+#include "pg/adc.h"
+#include "pg/beeper_dev.h"
+
 #include "hardware_revision.h"
 
 // alternative defaults settings for BlueJayF4 targets

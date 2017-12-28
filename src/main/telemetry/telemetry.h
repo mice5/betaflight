@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "config/parameter_group.h"
+#include "pg/pg.h"
 #include "io/serial.h"
 
 typedef enum {
@@ -54,7 +54,7 @@ typedef struct telemetryConfig_s {
 
 PG_DECLARE(telemetryConfig_t, telemetryConfig);
 
-#define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)
+#define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)
 #define TELEMETRY_PORT_FUNCTIONS_MASK (TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK | FUNCTION_TELEMETRY_HOTT | FUNCTION_TELEMETRY_SMARTPORT)
 
 extern serialPort_t *telemetrySharedPort;

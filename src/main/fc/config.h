@@ -20,16 +20,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "config/parameter_group.h"
+#include "pg/pg.h"
 
-#include "drivers/adc.h"
 #include "drivers/flash.h"
-#include "drivers/rx_pwm.h"
-#include "drivers/sdcard.h"
 #include "drivers/serial.h"
 #include "drivers/bus_i2c.h"
-#include "drivers/sound_beeper.h"
-#include "drivers/vcd.h"
 
 typedef enum {
     FEATURE_RX_PPM = 1 << 0,
@@ -39,7 +34,7 @@ typedef enum {
     FEATURE_SERVO_TILT = 1 << 5,
     FEATURE_SOFTSERIAL = 1 << 6,
     FEATURE_GPS = 1 << 7,
-    FEATURE_SONAR = 1 << 9,
+    FEATURE_RANGEFINDER = 1 << 9,
     FEATURE_TELEMETRY = 1 << 10,
     FEATURE_3D = 1 << 12,
     FEATURE_RX_PARALLEL_PWM = 1 << 13,
@@ -84,13 +79,6 @@ typedef struct systemConfig_s {
 
 PG_DECLARE(pilotConfig_t, pilotConfig);
 PG_DECLARE(systemConfig_t, systemConfig);
-PG_DECLARE(adcConfig_t, adcConfig);
-PG_DECLARE(beeperDevConfig_t, beeperDevConfig);
-PG_DECLARE(flashConfig_t, flashConfig);
-PG_DECLARE(ppmConfig_t, ppmConfig);
-PG_DECLARE(pwmConfig_t, pwmConfig);
-PG_DECLARE(vcdProfile_t, vcdProfile);
-PG_DECLARE(sdcardConfig_t, sdcardConfig);
 
 struct pidProfile_s;
 extern struct pidProfile_s *currentPidProfile;
