@@ -41,12 +41,12 @@
 #ifdef STM32F3
 #define MINIMAL_CLI
 #define USE_DSHOT
+#define USE_DSHOT_DMAR
 #define USE_GYRO_DATA_ANALYSE
 #endif
 
 #ifdef STM32F4
 #define USE_DSHOT
-#define USE_DSHOT_DMAR
 #define USE_ESC_SENSOR
 #define I2C3_OVERCLOCK true
 #define USE_TELEMETRY_IBUS
@@ -58,7 +58,6 @@
 #endif
 #ifdef STM32F7
 #define USE_DSHOT
-#define USE_DSHOT_DMAR
 #define USE_ESC_SENSOR
 #define I2C3_OVERCLOCK true
 #define I2C4_OVERCLOCK true
