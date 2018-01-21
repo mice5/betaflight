@@ -35,6 +35,10 @@
 #include "cms/cms_types.h"
 
 #include "drivers/accgyro/accgyro.h"
+#include "drivers/camera_control.h"
+#include "drivers/compass/compass.h"
+#include "drivers/pwm_esc_detect.h"
+#include "drivers/pwm_output.h"
 #include "drivers/adc.h"
 #include "drivers/bus.h"
 #include "drivers/bus_i2c.h"
@@ -62,9 +66,10 @@
 #include "drivers/time.h"
 #include "drivers/timer.h"
 #include "drivers/transponder_ir.h"
+#include "drivers/exti.h"
 #include "drivers/usb_io.h"
-#include "drivers/vtx_common.h"
 #include "drivers/vtx_rtc6705.h"
+#include "drivers/vtx_common.h"
 
 #include "fc/config.h"
 #include "fc/fc_init.h"
@@ -221,13 +226,16 @@ void spiPreInit(void)
 #ifdef USE_BARO_SPI_MS5611
     spiPreInitCs(IO_TAG(MS5611_CS_PIN));
 #endif
+#ifdef USE_BARO_SPI_LPS
+    spiPreInitCs(IO_TAG(LPS_CS_PIN));
+#endif
 #ifdef USE_MAG_SPI_HMC5883
     spiPreInitCs(IO_TAG(HMC5883_CS_PIN));
 #endif
 #ifdef USE_MAG_SPI_AK8963
     spiPreInitCs(IO_TAG(AK8963_CS_PIN));
 #endif
-#ifdef RTC6705_CS_PIN // XXX VTX_RTC6705? Should use USE_ format.
+#if defined(USE_VTX_RTC6705)
     spiPreInitCs(IO_TAG(RTC6705_CS_PIN));
 #endif
 #ifdef USE_FLASH_M25P16
@@ -468,7 +476,7 @@ void init(void)
     updateHardwareRevision();
 #endif
 
-#ifdef VTX_RTC6705
+#ifdef USE_VTX_RTC6705
     rtc6705IOInit();
 #endif
 
@@ -674,23 +682,23 @@ void init(void)
     baroSetCalibrationCycles(CALIBRATING_BARO_CYCLES);
 #endif
 
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
     vtxControlInit();
 
-#if defined(VTX_COMMON)
+#if defined(USE_VTX_COMMON)
     vtxCommonInit();
     vtxInit();
 #endif
 
-#ifdef VTX_SMARTAUDIO
+#ifdef USE_VTX_SMARTAUDIO
     vtxSmartAudioInit();
 #endif
 
-#ifdef VTX_TRAMP
+#ifdef USE_VTX_TRAMP
     vtxTrampInit();
 #endif
 
-#ifdef VTX_RTC6705
+#ifdef USE_VTX_RTC6705
 #ifdef VTX_RTC6705_OPTIONAL
     if (!vtxCommonDeviceRegistered()) // external VTX takes precedence when configured.
 #endif

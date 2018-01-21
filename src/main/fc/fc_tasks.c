@@ -71,6 +71,7 @@
 #include "rx/rx.h"
 
 #include "sensors/acceleration.h"
+#include "sensors/adcinternal.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/compass.h"
@@ -156,15 +157,6 @@ static void taskUpdateRxMain(timeUs_t currentTimeUs)
 }
 #endif
 
-#ifdef USE_MAG
-static void taskUpdateCompass(timeUs_t currentTimeUs)
-{
-    if (sensors(SENSOR_MAG)) {
-        compassUpdate(currentTimeUs, &compassConfigMutable()->magZero);
-    }
-}
-#endif
-
 #ifdef USE_BARO
 static void taskUpdateBaro(timeUs_t currentTimeUs)
 {
@@ -204,20 +196,6 @@ static void taskTelemetry(timeUs_t currentTimeUs)
     }
 }
 #endif
-
-#ifdef VTX_CONTROL
-// Everything that listens to VTX devices
-void taskVtxControl(timeUs_t currentTime)
-{
-    if (cliMode)
-        return;
-
-#ifdef VTX_COMMON
-    vtxProcessSchedule(currentTime);
-#endif
-}
-#endif
-
 
 #ifdef USE_CAMERA_CONTROL
 void taskCameraControl(uint32_t currentTime)
@@ -324,6 +302,9 @@ void fcTasksInit(void)
 #ifdef USE_ESC_SENSOR
     setTaskEnabled(TASK_ESC_SENSOR, feature(FEATURE_ESC_SENSOR));
 #endif
+#ifdef USE_ADC_INTERNAL
+    setTaskEnabled(TASK_ADC_INTERNAL, true);
+#endif
 #ifdef USE_CMS
 #ifdef USE_MSP_DISPLAYPORT
     setTaskEnabled(TASK_CMS, true);
@@ -331,8 +312,8 @@ void fcTasksInit(void)
     setTaskEnabled(TASK_CMS, feature(FEATURE_OSD) || feature(FEATURE_DASHBOARD));
 #endif
 #endif
-#ifdef VTX_CONTROL
-#if defined(VTX_RTC6705) || defined(VTX_SMARTAUDIO) || defined(VTX_TRAMP)
+#ifdef USE_VTX_CONTROL
+#if defined(USE_VTX_RTC6705) || defined(USE_VTX_SMARTAUDIO) || defined(USE_VTX_TRAMP)
     setTaskEnabled(TASK_VTXCTRL, true);
 #endif
 #endif
@@ -473,7 +454,7 @@ cfTask_t cfTasks[TASK_COUNT] = {
 #ifdef USE_MAG
     [TASK_COMPASS] = {
         .taskName = "COMPASS",
-        .taskFunc = taskUpdateCompass,
+        .taskFunc = compassUpdate,
         .desiredPeriod = TASK_PERIOD_HZ(10),        // Compass is updated at 10 Hz
         .staticPriority = TASK_PRIORITY_LOW,
     },
@@ -569,10 +550,10 @@ cfTask_t cfTasks[TASK_COUNT] = {
     },
 #endif
 
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
     [TASK_VTXCTRL] = {
         .taskName = "VTXCTRL",
-        .taskFunc = taskVtxControl,
+        .taskFunc = vtxUpdate,
         .desiredPeriod = TASK_PERIOD_HZ(5),          // 5 Hz, 200ms
         .staticPriority = TASK_PRIORITY_IDLE,
     },
@@ -592,6 +573,15 @@ cfTask_t cfTasks[TASK_COUNT] = {
         .taskName = "CAMCTRL",
         .taskFunc = taskCameraControl,
         .desiredPeriod = TASK_PERIOD_HZ(5),
+        .staticPriority = TASK_PRIORITY_IDLE
+    },
+#endif
+
+#ifdef USE_ADC_INTERNAL
+    [TASK_ADC_INTERNAL] = {
+        .taskName = "ADCINTERNAL",
+        .taskFunc = adcInternalProcess,
+        .desiredPeriod = TASK_PERIOD_HZ(1),
         .staticPriority = TASK_PRIORITY_IDLE
     },
 #endif

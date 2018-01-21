@@ -25,6 +25,9 @@
 #define MAX_FIR_DENOISE_WINDOW_SIZE 120
 #endif
 
+struct filter_s;
+typedef struct filter_s filter_t;
+
 typedef struct pt1Filter_s {
     float state;
     float k;
@@ -50,6 +53,15 @@ typedef struct firFilterDenoise_s {
     float state[MAX_FIR_DENOISE_WINDOW_SIZE];
 } firFilterDenoise_t;
 
+typedef struct fastKalman_s {
+    float q;       // process noise covariance
+    float r;       // measurement noise covariance
+    float p;       // estimation error covariance matrix
+    float k;       // kalman gain
+    float x;       // state
+    float lastX;   // previous state
+} fastKalman_t;
+
 typedef enum {
     FILTER_PT1 = 0,
     FILTER_BIQUAD,
@@ -73,9 +85,9 @@ typedef struct firFilter_s {
     uint8_t coeffsLength;
 } firFilter_t;
 
-typedef float (*filterApplyFnPtr)(void *filter, float input);
+typedef float (*filterApplyFnPtr)(filter_t *filter, float input);
 
-float nullFilterApply(void *filter, float input);
+float nullFilterApply(filter_t *filter, float input);
 
 void biquadFilterInitLPF(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate);
 void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q, biquadFilterType_e filterType);
@@ -83,6 +95,11 @@ void biquadFilterUpdate(biquadFilter_t *filter, float filterFreq, uint32_t refre
 float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
 float biquadFilterApply(biquadFilter_t *filter, float input);
 float filterGetNotchQ(uint16_t centerFreq, uint16_t cutoff);
+
+void biquadRCFIR2FilterInit(biquadFilter_t *filter, float q, float r);
+
+void fastKalmanInit(fastKalman_t *filter, float q, float r, float p);
+float fastKalmanUpdate(fastKalman_t *filter, float input);
 
 // not exactly correct, but very very close and much much faster
 #define filterGetNotchQApprox(centerFreq, cutoff)   ((float)(cutoff * centerFreq) / ((float)(centerFreq - cutoff) * (float)(centerFreq + cutoff)))

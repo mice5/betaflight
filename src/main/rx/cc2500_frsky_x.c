@@ -333,7 +333,7 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
 
         FALLTHROUGH;
         // here FS code could be
-    case STATE_DATA:	
+    case STATE_DATA:
         if (IORead(gdoPin) && (frameReceived == false)){
             uint8_t ccLen = cc2500ReadReg(CC2500_3B_RXBYTES | CC2500_READ_BURST) & 0x7F;
             ccLen = cc2500ReadReg(CC2500_3B_RXBYTES | CC2500_READ_BURST) & 0x7F; // read 2 times to avoid reading errors
@@ -341,7 +341,7 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
                 ccLen = 32;
             }
             if (ccLen) {
-                cc2500ReadFifo(packet, ccLen);				
+                cc2500ReadFifo(packet, ccLen);
                 uint16_t lcrc= calculateCrc(&packet[3], (ccLen - 7));
                 if((lcrc >> 8) == packet[ccLen-4] && (lcrc&0x00FF) == packet[ccLen - 3]){ // check calculateCrc
                     if (packet[0] == 0x1D) {
@@ -351,7 +351,7 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
                             missingPackets = 0;
                             timeoutUs = 1;
                             receiveDelayUs = 0;
-                            IOHi(frSkyLedPin);
+                            LedOn();
                             if (skipChannels) {
                                 channelsToSkip = packet[5] << 2;
                                 if (packet[4] >= listLength) {
@@ -419,7 +419,7 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
                             packetTimerUs = micros();
                             frameReceived = true; // no need to process frame again.
                         }
-                    }				
+                    }
                 }
             }
         }
@@ -431,9 +431,9 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
         }
         if (cmpTimeUs(micros(), packetTimerUs) > timeoutUs * SYNC_DELAY_MAX) {
             if (ledIsOn) {
-                IOLo(frSkyLedPin);
+                LedOff();
             } else {
-                IOHi(frSkyLedPin);
+                LedOn();
             }
             ledIsOn = !ledIsOn;
 
@@ -500,7 +500,7 @@ rx_spi_received_e frSkyXHandlePacket(uint8_t * const packet, uint8_t * const pro
             nextChannel(channelsToSkip);
             cc2500Strobe(CC2500_SRX);
 #ifdef USE_RX_FRSKY_SPI_PA_LNA
-            RxEnable();
+            TxDisable();
 #if defined(USE_RX_FRSKY_SPI_DIVERSITY)
             if (missingPackets >= 2) {
                 switchAntennae();

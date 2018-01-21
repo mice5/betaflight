@@ -33,7 +33,7 @@
 
 // NULL filter
 
-FAST_CODE float nullFilterApply(void *filter, float input)
+FAST_CODE float nullFilterApply(filter_t *filter, float input)
 {
     UNUSED(filter);
     return input;
@@ -301,4 +301,45 @@ float firFilterDenoiseUpdate(firFilterDenoise_t *filter, float input)
     } else {
         return filter->movingSum / ++filter->filledCount + 1;
     }
+}
+
+// ledvinap's proposed RC+FIR2 Biquad-- equivalent to 'static' fast Kalman, without error estimation
+void biquadRCFIR2FilterInit(biquadFilter_t *filter, float q, float r)
+{
+    float k = 2 * 2 * sqrt(q) / (sqrt(q + 4 * r) + sqrt(q));  // 1st order IIR filter k
+    filter->b0 = k / 2;
+    filter->b1 = k / 2;
+    filter->b2 = 0;
+    filter->a1 = -(1 - k);
+    filter->a2 = 0;
+}
+
+// Fast two-state Kalman
+void fastKalmanInit(fastKalman_t *filter, float q, float r, float p)
+{
+    filter->q     = q * 0.000001f; // add multiplier to make tuning easier
+    filter->r     = r * 0.001f;    // add multiplier to make tuning easier
+    filter->p     = p * 0.001f;    // add multiplier to make tuning easier
+    filter->x     = 0.0f;          // set initial value, can be zero if unknown
+    filter->lastX = 0.0f;          // set initial value, can be zero if unknown
+    filter->k     = 0.0f;          // kalman gain
+}
+
+FAST_CODE float fastKalmanUpdate(fastKalman_t *filter, float input)
+{
+    // project the state ahead using acceleration
+    filter->x += (filter->x - filter->lastX);
+
+    // update last state
+    filter->lastX = filter->x;
+
+    // prediction update
+    filter->p = filter->p + filter->q;
+
+    // measurement update
+    filter->k = filter->p / (filter->p + filter->r);
+    filter->x += filter->k * (input - filter->x);
+    filter->p = (1.0f - filter->k) * filter->p;
+
+    return filter->x;
 }

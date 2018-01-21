@@ -55,6 +55,7 @@ extern uint8_t __config_end;
 #include "config/feature.h"
 
 #include "drivers/accgyro/accgyro.h"
+#include "drivers/adc.h"
 #include "drivers/buf_writer.h"
 #include "drivers/bus_spi.h"
 #include "drivers/compass/compass.h"
@@ -69,6 +70,7 @@ extern uint8_t __config_end;
 #include "drivers/serial.h"
 #include "drivers/serial_escserial.h"
 #include "drivers/rangefinder/rangefinder_hcsr04.h"
+#include "drivers/sound_beeper.h"
 #include "drivers/stack_check.h"
 #include "drivers/system.h"
 #include "drivers/transponder_ir.h"
@@ -128,6 +130,7 @@ extern uint8_t __config_end;
 #include "scheduler/scheduler.h"
 
 #include "sensors/acceleration.h"
+#include "sensors/adcinternal.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/boardalignment.h"
@@ -1856,7 +1859,7 @@ static void cliFlashRead(char *cmdline)
 #endif
 #endif
 
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
 static void printVtx(uint8_t dumpMask, const vtxConfig_t *vtxConfig, const vtxConfig_t *vtxConfigDefault)
 {
     // print out vtx channel settings
@@ -2995,7 +2998,7 @@ static void cliStatus(char *cmdline)
     UNUSED(cmdline);
 
     cliPrintLinef("System Uptime: %d seconds", millis() / 1000);
-    
+
     #ifdef USE_RTC_TIME
     char buf[FORMATTED_DATE_TIME_BUFSIZE];
     dateTime_t dt;
@@ -3008,6 +3011,12 @@ static void cliStatus(char *cmdline)
     cliPrintLinef("Voltage: %d * 0.1V (%dS battery - %s)", getBatteryVoltage(), getBatteryCellCount(), getBatteryStateString());
 
     cliPrintf("CPU Clock=%dMHz", (SystemCoreClock / 1000000));
+
+#ifdef USE_ADC_INTERNAL
+    uint16_t vrefintMv = getVrefMv();
+    uint16_t coretemp = getCoreTemperatureCelsius();
+    cliPrintf(", Vref=%d.%2dV, Core temp=%ddegC", vrefintMv / 1000, (vrefintMv % 1000) / 10, coretemp);
+#endif
 
 #if defined(USE_SENSOR_NAMES)
     const uint32_t detectedSensorsMask = sensorsMask();
@@ -3558,7 +3567,7 @@ static void printConfig(char *cmdline, bool doDiff)
         cliPrintHashLine("rxrange");
         printRxRange(dumpMask, rxChannelRangeConfigs_CopyArray, rxChannelRangeConfigs(0));
 
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
         cliPrintHashLine("vtx");
         printVtx(dumpMask, &vtxConfig_Copy, vtxConfig());
 #endif
@@ -3732,7 +3741,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),
 #endif
     CLI_COMMAND_DEF("version", "show version", NULL, cliVersion),
-#ifdef VTX_CONTROL
+#ifdef USE_VTX_CONTROL
     CLI_COMMAND_DEF("vtx", "vtx channels on switch", NULL, cliVtx),
 #endif
 };

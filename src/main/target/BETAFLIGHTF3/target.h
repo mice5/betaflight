@@ -21,7 +21,6 @@
 #define TARGET_BOARD_IDENTIFIER "BFF3"
 
 // Removing some features to make the firmware fit the flash space
-#undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_JETIEXBUS
 #undef USE_TELEMETRY_LTM
 
@@ -54,6 +53,8 @@
 #define USE_ESC_SENSOR
 #define REMAP_TIM16_DMA
 #define REMAP_TIM17_DMA
+
+#undef USE_TELEMETRY_IBUS
 
 #define USE_VCP
 #define USE_UART1
@@ -121,6 +122,7 @@
 #define DEFAULT_CURRENT_METER_SOURCE CURRENT_METER_ADC
 #define USE_ADC
 #define ADC_INSTANCE            ADC2
+#define ADC24_DMA_REMAP
 #define VBAT_ADC_PIN            PA4
 #define CURRENT_METER_ADC_PIN   PA5
 #define RSSI_ADC_PIN            PB2

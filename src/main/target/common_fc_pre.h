@@ -41,7 +41,6 @@
 #ifdef STM32F3
 #define MINIMAL_CLI
 #define USE_DSHOT
-#define USE_DSHOT_DMAR
 #define USE_GYRO_DATA_ANALYSE
 #endif
 
@@ -49,9 +48,10 @@
 #define USE_DSHOT
 #define USE_ESC_SENSOR
 #define I2C3_OVERCLOCK true
-#define USE_TELEMETRY_IBUS
 #define USE_GYRO_DATA_ANALYSE
-#endif
+#define USE_ADC
+#define USE_ADC_INTERNAL
+#endif // STM32F4
 
 #ifdef STM32F722xx
 #define USE_ITCM_RAM
@@ -61,15 +61,14 @@
 #define USE_ESC_SENSOR
 #define I2C3_OVERCLOCK true
 #define I2C4_OVERCLOCK true
-#define USE_TELEMETRY_IBUS
 #define USE_GYRO_DATA_ANALYSE
 #endif
 
 #if defined(STM32F4) || defined(STM32F7)
-#define TASK_GYROPID_DESIRED_PERIOD     125
+#define TASK_GYROPID_DESIRED_PERIOD     125 // 125us = 8kHz
 #define SCHEDULER_DELAY_LIMIT           10
 #else
-#define TASK_GYROPID_DESIRED_PERIOD     1000
+#define TASK_GYROPID_DESIRED_PERIOD     1000 // 1000us = 1kHz
 #define SCHEDULER_DELAY_LIMIT           100
 #endif
 
@@ -125,7 +124,7 @@
 #define USE_RESOURCE_MGMT
 #define USE_SERVOS
 #endif
- 
+
 #if (FLASH_SIZE > 128)
 #define USE_CMS
 #define USE_TELEMETRY_CRSF
@@ -133,7 +132,6 @@
 #define USE_TELEMETRY_JETIEXBUS
 #define USE_TELEMETRY_MAVLINK
 #define USE_TELEMETRY_SRXL
-#define USE_DASHBOARD
 #define USE_MSP_DISPLAYPORT
 #define USE_RCDEVICE
 #define USE_RX_MSP
@@ -141,10 +139,10 @@
 #define USE_SENSOR_NAMES
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_VIRTUAL_CURRENT_METER
-#define VTX_COMMON
-#define VTX_CONTROL
-#define VTX_SMARTAUDIO
-#define VTX_TRAMP
+#define USE_VTX_COMMON
+#define USE_VTX_CONTROL
+#define USE_VTX_SMARTAUDIO
+#define USE_VTX_TRAMP
 #define USE_CAMERA_CONTROL
 #define USE_GYRO_OVERFLOW_CHECK
 #define USE_HUFFMAN
@@ -164,12 +162,16 @@
 #endif
 
 #if (FLASH_SIZE > 256)
-// Temporarily moved GPS here because of overflowing flash size on F3
+#define USE_ALT_HOLD
+#define USE_DASHBOARD
 #define USE_GPS
 #define USE_GPS_UBLOX
 #define USE_GPS_NMEA
-#define USE_NAV
-#define USE_ALT_HOLD
-#define USE_UNCOMMON_MIXERS
 #define USE_OSD_ADJUSTMENTS
+#define USE_NAV
+#define USE_TELEMETRY_IBUS
+#define USE_TELEMETRY_IBUS_EXTENDED
+#define USE_UNCOMMON_MIXERS
+// #define USE_GYRO_FAST_KALMAN
+#define USE_GYRO_BIQUAD_RC_FIR2
 #endif

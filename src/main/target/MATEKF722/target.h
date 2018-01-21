@@ -73,6 +73,10 @@
 #define USE_BARO_MS5611
 #define USE_BARO_BMP085
 
+//*********** Magnetometer / Compass *************
+#define USE_MAG
+#define USE_MAG_HMC5883
+
 // *************** SD Card **************************
 #define USE_SDCARD
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
@@ -152,8 +156,6 @@
 #define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #define DEFAULT_CURRENT_METER_SOURCE CURRENT_METER_ADC
 #define CURRENT_METER_SCALE_DEFAULT 179
-
-#define USE_LED_STRIP
 
 #define USE_ESCSERIAL
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE

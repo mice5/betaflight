@@ -22,7 +22,7 @@
 
 #include "platform.h"
 
-#if defined(VTX_RTC6705) && defined(VTX_CONTROL)
+#if defined(USE_VTX_RTC6705) && defined(USE_VTX_CONTROL)
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -51,13 +51,13 @@
 #include "io/vtx_rtc6705.h"
 #include "io/vtx_string.h"
 
-#if defined(USE_CMS) || defined(VTX_COMMON)
-const char * const rtc6705PowerNames[VTX_RTC6705_POWER_COUNT] = {
-    "---", "25 ", "200",
+#if defined(USE_CMS) || defined(USE_VTX_COMMON)
+const char * const rtc6705PowerNames[] = {
+    "OFF", "MIN", "MAX"
 };
 #endif
 
-#ifdef VTX_COMMON
+#ifdef USE_VTX_COMMON
 static vtxVTable_t rtc6705VTable;    // Forward
 static vtxDevice_t vtxRTC6705 = {
     .vTable = &rtc6705VTable,
@@ -79,7 +79,7 @@ bool vtxRTC6705Init(void)
 
 void vtxRTC6705Configure(void)
 {
-    rtc6705SetRFPower(vtxRTC6705.powerIndex - 1);
+    rtc6705SetRFPower(vtxRTC6705.powerIndex);
     rtc6705SetBandAndChannel(vtxRTC6705.band - 1, vtxRTC6705.channel - 1);
 }
 
@@ -100,7 +100,7 @@ static void vtxRTC6705EnableAndConfigure(void)
 
     rtc6705Enable();
 
-    delay(RTC6705_BOOT_DELAY);
+    delay(VTX_RTC6705_BOOT_DELAY);
 
     vtxRTC6705Configure();
 }
@@ -111,7 +111,7 @@ void vtxRTC6705Process(timeUs_t now)
     UNUSED(now);
 }
 
-#ifdef VTX_COMMON
+#ifdef USE_VTX_COMMON
 // Interface to common VTX API
 
 vtxDevType_e vtxRTC6705GetDeviceType(void)
@@ -131,10 +131,10 @@ void vtxRTC6705SetBandAndChannel(uint8_t band, uint8_t channel)
     if (band && channel) {
         if (vtxRTC6705.powerIndex > 0) {
             rtc6705SetBandAndChannel(band - 1, channel - 1);
-        }
 
-        vtxRTC6705.band = band;
-        vtxRTC6705.channel = channel;
+            vtxRTC6705.band = band;
+            vtxRTC6705.channel = channel;
+        }
     }
 }
 

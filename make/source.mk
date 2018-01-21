@@ -65,13 +65,13 @@ COMMON_SRC = \
             pg/beeper_dev.c \
             pg/bus_i2c.c \
             pg/bus_spi.c \
-            pg/flash.c \
             pg/max7456.c \
             pg/pg.c \
             pg/rx_pwm.c \
             pg/sdcard.c \
             pg/vcd.c \
             scheduler/scheduler.c \
+            sensors/adcinternal.c \
             sensors/battery.c \
             sensors/current.c \
             sensors/voltage.c \
@@ -88,7 +88,6 @@ FC_SRC = \
             drivers/accgyro/gyro_sync.c \
             drivers/pwm_esc_detect.c \
             drivers/pwm_output.c \
-            drivers/rx/rx_nrf24l01.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -112,11 +111,6 @@ FC_SRC = \
             rx/ibus.c \
             rx/jetiexbus.c \
             rx/msp.c \
-            rx/nrf24_cx10.c \
-            rx/nrf24_inav.c \
-            rx/nrf24_h8_3d.c \
-            rx/nrf24_syma.c \
-            rx/nrf24_v202.c \
             rx/pwm.c \
             rx/rx.c \
             rx/rx_spi.c \
@@ -203,7 +197,6 @@ else
 COMMON_SRC := $(COMMON_SRC) $(FC_SRC) $(COMMON_DEVICE_SRC)
 endif
 
-
 SPEED_OPTIMISED_SRC := ""
 SIZE_OPTIMISED_SRC  := ""
 
@@ -274,6 +267,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/barometer/barometer_bmp280.c \
             drivers/barometer/barometer_fake.c \
             drivers/barometer/barometer_ms5611.c \
+            drivers/barometer/barometer_lps.c \
             drivers/bus_i2c_config.c \
             drivers/bus_spi_config.c \
             drivers/bus_spi_pinconfig.c \
@@ -361,7 +355,8 @@ endif
 ifneq ($(filter ONBOARDFLASH,$(FEATURES)),)
 SRC += \
             drivers/flash_m25p16.c \
-            io/flashfs.c
+            io/flashfs.c \
+            pg/flash.c
 endif
 
 SRC += $(COMMON_SRC)

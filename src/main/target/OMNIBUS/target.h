@@ -19,18 +19,19 @@
 
 // Removed to make the firmware fit into flash:
 #undef USE_TELEMETRY_IBUS
-#undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_JETIEXBUS
 #undef USE_SERIALRX_JETIEXBUS
 #undef USE_TELEMETRY_MAVLINK
 #undef USE_TELEMETRY_LTM
-#undef USE_RCDEVICE
-#undef USE_DASHBOARD
 
 
 #define TARGET_BOARD_IDENTIFIER "OMNI" // https://en.wikipedia.org/wiki/Omnibus
 
 #define CONFIG_FASTLOOP_PREFERRED_ACC ACC_NONE
+
+// Can be configured for DMAR, but keep it legacy DSHOT for backward compatibility of
+// Motor x 1 + Servo x 3 on PWM1~4 use case.
+#define USE_DSHOT_DMA
 
 #define LED0_PIN                PB3
 

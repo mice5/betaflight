@@ -15,6 +15,22 @@
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <platform.h>
 
-#include "stm32f7xx.h"
+#ifdef USE_TARGET_CONFIG
+
+
+#include "io/serial.h"
+
+
+void targetConfiguration(void)
+{
+
+    serialConfigMutable()->portConfigs[0].functionMask = FUNCTION_MSP;
+    serialConfigMutable()->portConfigs[1].functionMask = FUNCTION_MSP;
+    serialConfigMutable()->portConfigs[2].functionMask = FUNCTION_MSP;
+
+
+
+}
+#endif

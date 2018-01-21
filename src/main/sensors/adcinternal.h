@@ -17,4 +17,9 @@
 
 #pragma once
 
-#include "stm32f10x.h"
+#include "drivers/time.h"
+
+void adcInternalInit(void);
+void adcInternalProcess(timeUs_t currentTimeUs);
+uint16_t getCoreTemperatureCelsius(void);
+uint16_t getVrefMv(void);
