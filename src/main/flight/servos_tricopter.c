@@ -15,17 +15,31 @@
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "pg/pg.h"
+#include "platform.h"
 
-typedef struct boardAlignment_s {
-    int32_t rollDegrees;
-    int32_t pitchDegrees;
-    int32_t yawDegrees;
-} boardAlignment_t;
+#ifdef USE_SERVOS
 
-PG_DECLARE(boardAlignment_t, boardAlignment);
+#include "flight/mixer.h"
+#include "flight/mixer_tricopter.h"
+#include "flight/servos.h"
 
-void alignSensors(float *dest, uint8_t rotation);
-void initBoardAlignment(const boardAlignment_t *boardAlignment);
+
+bool servosTricopterIsEnabledServoUnarmed(void)
+{
+    return servoConfig()->tri_unarmed_servo;
+}
+
+void servosTricopterMixer(void)
+{
+    servoMixer();
+}
+
+void servosTricopterInit(void)
+{
+
+}
+
+#endif // USE_SERVOS

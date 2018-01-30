@@ -17,15 +17,17 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include "pg/pg.h"
 
-typedef struct boardAlignment_s {
-    int32_t rollDegrees;
-    int32_t pitchDegrees;
-    int32_t yawDegrees;
-} boardAlignment_t;
+typedef struct tricopterMixerConfig_s {
+    uint8_t dummy;
+} tricopterMixerConfig_t;
 
-PG_DECLARE(boardAlignment_t, boardAlignment);
+PG_DECLARE(tricopterMixerConfig_t, tricopterMixerConfig);
 
-void alignSensors(float *dest, uint8_t rotation);
-void initBoardAlignment(const boardAlignment_t *boardAlignment);
+
+bool mixerTricopterIsServoSaturated(float errorRate);
+void mixerTricopterInit(void);
+float mixerTricopterMotorCorrection(int motor);

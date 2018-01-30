@@ -93,7 +93,10 @@ float applyBetaflightRates(const int axis, float rcCommandf, const float rcComma
         rcCommandf = rcCommandf * power3(rcCommandfAbs) * expof + rcCommandf * (1 - expof);
     }
 
-    const float rcRate = currentControlRateProfile->rcRates[axis] / 100.0f;
+    float rcRate = currentControlRateProfile->rcRates[axis] / 100.0f;
+    if (rcRate > 2.0f) {
+        rcRate += RC_RATE_INCREMENTAL * (rcRate - 2.0f);
+    }
     float angleRate = 200.0f * rcRate * rcCommandf;
     if (currentControlRateProfile->rates[axis]) {
         const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
@@ -105,13 +108,11 @@ float applyBetaflightRates(const int axis, float rcCommandf, const float rcComma
 
 float applyRaceFlightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
-    UNUSED(rcCommandfAbs);
-
     // -1.0 to 1.0 ranged and curved
     rcCommandf = ((1.0f + 0.01f * currentControlRateProfile->rcExpo[axis] * (rcCommandf * rcCommandf - 1.0f)) * rcCommandf);
     // convert to -2000 to 2000 range using acro+ modifier
     float angleRate = 10.0f * currentControlRateProfile->rcRates[axis] * rcCommandf;
-    angleRate = angleRate * (1 + (float)currentControlRateProfile->rates[axis] * 0.01f);
+    angleRate = angleRate * (1 + rcCommandfAbs * (float)currentControlRateProfile->rates[axis] * 0.01f);
 
     return angleRate;
 }
@@ -192,8 +193,7 @@ void processRcCommand(void)
 
     const uint8_t interpolationChannels = rxConfig()->rcInterpolationChannels + 2; //"RP", "RPY", "RPYT"
     uint16_t rxRefreshRate;
-    bool readyToCalculateRate = false;
-    uint8_t readyToCalculateRateAxisCnt = 0;
+    uint8_t updatedChannel = 0;
 
     if (rxConfig()->rcInterpolation) {
          // Set RC refresh rate for sampling and channels to filter
@@ -213,7 +213,7 @@ void processRcCommand(void)
         if (isRXDataNew && rxRefreshRate > 0) {
             rcInterpolationStepCount = rxRefreshRate / targetPidLooptime;
 
-            for (int channel=ROLL; channel < interpolationChannels; channel++) {
+            for (int channel = ROLL; channel < interpolationChannels; channel++) {
                 rcStepSize[channel] = (rcCommand[channel] - rcCommandInterp[channel]) / (float)rcInterpolationStepCount;
             }
 
@@ -229,27 +229,22 @@ void processRcCommand(void)
 
         // Interpolate steps of rcCommand
         if (rcInterpolationStepCount > 0) {
-            for (int channel=ROLL; channel < interpolationChannels; channel++) {
-                rcCommandInterp[channel] += rcStepSize[channel];
-                rcCommand[channel] = rcCommandInterp[channel];
-                readyToCalculateRateAxisCnt = MAX(channel, FD_YAW); // throttle channel doesn't require rate calculation
+            for (updatedChannel = ROLL; updatedChannel < interpolationChannels; updatedChannel++) {
+                rcCommandInterp[updatedChannel] += rcStepSize[updatedChannel];
+                rcCommand[updatedChannel] = rcCommandInterp[updatedChannel];
             }
-            readyToCalculateRate = true;
         }
     } else {
         rcInterpolationStepCount = 0; // reset factor in case of level modes flip flopping
     }
 
-    if (readyToCalculateRate || isRXDataNew) {
-        if (isRXDataNew) {
-            readyToCalculateRateAxisCnt = FD_YAW;
-        }
-
+    if (isRXDataNew || updatedChannel) {
+        const uint8_t maxUpdatedAxis = isRXDataNew ? FD_YAW : MIN(updatedChannel, FD_YAW); // throttle channel doesn't require rate calculation
 #if defined(SITL)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
 #endif
-        for (int axis = 0; axis <= readyToCalculateRateAxisCnt; axis++) {
+        for (int axis = FD_ROLL; axis <= maxUpdatedAxis; axis++) {
 #if defined(SITL)
 #pragma GCC diagnostic pop
 #endif
@@ -260,11 +255,14 @@ void processRcCommand(void)
             debug[2] = rcInterpolationStepCount;
             debug[3] = setpointRate[0];
         }
+
         // Scaling of AngleRate to camera angle (Mixing Roll and Yaw)
         if (rxConfig()->fpvCamAngleDegrees && IS_RC_MODE_ACTIVE(BOXFPVANGLEMIX) && !FLIGHT_MODE(HEADFREE_MODE)) {
             scaleRcCommandToFpvCamAngle();
         }
+    }
 
+    if (isRXDataNew) {
         isRXDataNew = false;
     }
 }

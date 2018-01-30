@@ -42,9 +42,12 @@ void resetArmingDisabled(void);
 void disarm(void);
 void tryArm(void);
 
-void processRx(timeUs_t currentTimeUs);
+bool processRx(timeUs_t currentTimeUs);
 void updateArmingStatus(void);
 void updateRcCommands(void);
 
-void taskMainPidLoop(timeUs_t currentTimeUs);
 bool isFlipOverAfterCrashMode(void);
+
+#if defined(USE_GPS) || defined(USE_MAG)
+void updateMagHold(void);
+#endif

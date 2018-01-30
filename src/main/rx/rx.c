@@ -75,7 +75,9 @@ static timeUs_t lastMspRssiUpdateUs = 0;
 
 rssiSource_t rssiSource;
 
-static bool rxDataReceived = false;
+static bool rxDataProcessingRequired = false;
+static bool auxiliaryProcessingRequired = false;
+
 static bool rxSignalReceived = false;
 static bool rxSignalReceivedNotDataDriven = false;
 static bool rxFlightChannelsValid = false;
@@ -83,7 +85,7 @@ static bool rxIsInFailsafeMode = true;
 static bool rxIsInFailsafeModeNotDataDriven = true;
 static uint8_t rxChannelCount;
 
-static uint32_t rxUpdateAt = 0;
+static timeUs_t rxNextUpdateAtUs = 0;
 static uint32_t needRxSignalBefore = 0;
 static uint32_t needRxSignalMaxDelayUs;
 static uint32_t suspendRxSignalUntil = 0;
@@ -204,6 +206,13 @@ static uint8_t nullFrameStatus(rxRuntimeConfig_t *rxRuntimeConfig)
     return RX_FRAME_PENDING;
 }
 
+static bool nullProcessFrame(const rxRuntimeConfig_t *rxRuntimeConfig)
+{
+    UNUSED(rxRuntimeConfig);
+
+    return true;
+}
+
 #define REQUIRED_CHANNEL_MASK 0x0F // first 4 channels
 
 static uint8_t validFlightChannelMask;
@@ -302,6 +311,7 @@ void rxInit(void)
 {
     rxRuntimeConfig.rcReadRawFn = nullReadRawRC;
     rxRuntimeConfig.rcFrameStatusFn = nullFrameStatus;
+    rxRuntimeConfig.rcProcessFrameFn = nullProcessFrame;
     rcSampleIndex = 0;
     needRxSignalMaxDelayUs = DELAY_10_HZ;
 
@@ -433,16 +443,21 @@ bool rxUpdateCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTime)
     } else
 #endif
     {
-        rxDataReceived = false;
         const uint8_t frameStatus = rxRuntimeConfig.rcFrameStatusFn(&rxRuntimeConfig);
         if (frameStatus & RX_FRAME_COMPLETE) {
-            rxDataReceived = true;
+            rxDataProcessingRequired = true;
             rxIsInFailsafeMode = (frameStatus & RX_FRAME_FAILSAFE) != 0;
             rxSignalReceived = !rxIsInFailsafeMode;
             needRxSignalBefore = currentTimeUs + needRxSignalMaxDelayUs;
+	} else if (cmpTimeUs(currentTimeUs, rxNextUpdateAtUs) > 0) {
+            rxDataProcessingRequired = true;
+        }
+
+        if (frameStatus & RX_FRAME_PROCESSING_REQUIRED) {
+            auxiliaryProcessingRequired = true;
         }
     }
-    return rxDataReceived || (currentTimeUs >= rxUpdateAt); // data driven or 50Hz
+    return rxDataProcessingRequired || auxiliaryProcessingRequired; // data driven or 50Hz
 }
 
 static uint16_t calculateChannelMovingAverage(uint8_t chan, uint16_t sample)
@@ -597,22 +612,34 @@ static void detectAndApplySignalLossBehaviour(timeUs_t currentTimeUs)
 #endif
 }
 
-void calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs)
+bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs)
 {
-    rxUpdateAt = currentTimeUs + DELAY_50_HZ;
+    if (auxiliaryProcessingRequired) {
+        auxiliaryProcessingRequired = !rxRuntimeConfig.rcProcessFrameFn(&rxRuntimeConfig);
+    }
+
+    if (!rxDataProcessingRequired) {
+        return false;
+    }
+
+    rxDataProcessingRequired = false;
+    rxNextUpdateAtUs = currentTimeUs + DELAY_50_HZ;
 
     // only proceed when no more samples to skip and suspend period is over
     if (skipRxSamples) {
         if (currentTimeUs > suspendRxSignalUntil) {
             skipRxSamples--;
         }
-        return;
+
+        return true;
     }
 
     readRxChannelsApplyRanges();
     detectAndApplySignalLossBehaviour(currentTimeUs);
 
     rcSampleIndex++;
+
+    return true;
 }
 
 void parseRcChannels(const char *input, rxConfig_t *rxConfig)
