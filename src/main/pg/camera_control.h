@@ -17,6 +17,19 @@
 
 #pragma once
 
-#define LOOPTIME_SUSPEND_TIME 3  // Prevent too long busy wait times
+#include "drivers/io_types.h"
+#include "drivers/camera_control.h"
+#include "pg/pg.h"
 
-void fcTasksInit(void);
+typedef struct cameraControlConfig_s {
+    cameraControlMode_e mode;
+    // measured in 10 mV steps
+    uint16_t refVoltage;
+    uint16_t keyDelayMs;
+    // measured 100 Ohm steps
+    uint16_t internalResistance;
+
+    ioTag_t ioTag;
+} cameraControlConfig_t;
+
+PG_DECLARE(cameraControlConfig_t, cameraControlConfig);

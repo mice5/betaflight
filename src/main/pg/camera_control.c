@@ -15,8 +15,32 @@
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <platform.h>
 
-#define LOOPTIME_SUSPEND_TIME 3  // Prevent too long busy wait times
+#ifdef USE_CAMERA_CONTROL
 
-void fcTasksInit(void);
+#include "pg/pg_ids.h"
+#include "pg/camera_control.h"
+#include "drivers/camera_control.h"
+#include "drivers/io.h"
+
+//#include "math.h"
+//#include "nvic.h"
+//#include "pwm_output.h"
+//#include "time.h"
+
+#ifndef CAMERA_CONTROL_PIN
+#define CAMERA_CONTROL_PIN NONE
+#endif
+
+PG_REGISTER_WITH_RESET_TEMPLATE(cameraControlConfig_t, cameraControlConfig, PG_CAMERA_CONTROL_CONFIG, 0);
+
+PG_RESET_TEMPLATE(cameraControlConfig_t, cameraControlConfig,
+    .mode = CAMERA_CONTROL_MODE_HARDWARE_PWM,
+    .refVoltage = 330,
+    .keyDelayMs = 180,
+    .internalResistance = 470,
+    .ioTag = IO_TAG(CAMERA_CONTROL_PIN)
+);
+
+#endif
