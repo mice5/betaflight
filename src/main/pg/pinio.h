@@ -15,32 +15,15 @@
  * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <platform.h>
+#pragma once
 
-#ifdef USE_CAMERA_CONTROL
+#include "pg/pg.h"
+#include "drivers/io_types.h"
+#include "drivers/pinio.h"
 
-#include "pg/pg_ids.h"
-#include "pg/camera_control.h"
-#include "drivers/camera_control.h"
-#include "drivers/io.h"
+typedef struct pinioConfig_s {
+    ioTag_t ioTag[PINIO_COUNT];
+    uint8_t config[PINIO_COUNT];
+} pinioConfig_t;
 
-//#include "math.h"
-//#include "nvic.h"
-//#include "pwm_output.h"
-//#include "time.h"
-
-#ifndef CAMERA_CONTROL_PIN
-#define CAMERA_CONTROL_PIN NONE
-#endif
-
-PG_REGISTER_WITH_RESET_TEMPLATE(cameraControlConfig_t, cameraControlConfig, PG_CAMERA_CONTROL_CONFIG, 0);
-
-PG_RESET_TEMPLATE(cameraControlConfig_t, cameraControlConfig,
-    .mode = CAMERA_CONTROL_MODE_HARDWARE_PWM,
-    .refVoltage = 330,
-    .keyDelayMs = 180,
-    .internalResistance = 470,
-    .ioTag = IO_TAG(CAMERA_CONTROL_PIN)
-);
-
-#endif
+PG_DECLARE(pinioConfig_t, pinioConfig);

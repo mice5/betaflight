@@ -57,6 +57,7 @@
 #include "drivers/time.h"
 
 #include "fc/config.h"
+#include "fc/fc_core.h"
 #include "fc/rc_adjustments.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
@@ -335,23 +336,17 @@ static void osdFormatCoordinate(char *buff, char sym, int32_t val)
 {
     // latitude maximum integer width is 3 (-90).
     // longitude maximum integer width is 4 (-180).
-    // We show 7 decimals, so we need to use 11 characters because
-    // we are embedding the decimal separator between two digits
-    // eg: s-1801234567z   s=symbol, z=zero terminator, decimal separator embedded between 0 and 1
+    // We show 7 decimals, so we need to use 12 characters:
+    // eg: s-180.1234567z   s=symbol, z=zero terminator, decimal separator  between 0 and 1
 
-    static const int decimalPlaces = 7;
-    static const int coordinateMaxLength = 11;//5 + decimalPlaces; // 4 for the integer part of the number + 1 for the symbol
+    static const int coordinateMaxLength = 13;//12 for the number (4 + dot + 7) + 1 for the symbol
 
     buff[0] = sym;
     const int32_t integerPart = val / GPS_DEGREES_DIVIDER;
     const int32_t decimalPart = labs(val % GPS_DEGREES_DIVIDER);
-    const int written = tfp_sprintf(buff + 1, "%d", integerPart);
-    tfp_sprintf(buff + 1 + written, "%07d", decimalPart);
-    // embed the decimal separator
-    buff[1+written-1] += SYM_ZERO_HALF_TRAILING_DOT - '0';
-    buff[1+written] += SYM_ZERO_HALF_LEADING_DOT - '0';
+    const int written = tfp_sprintf(buff + 1, "%d.%07d", integerPart, decimalPart);
     // pad with blanks to coordinateMaxLength
-    for (int pos = 1 + decimalPlaces + written; pos < coordinateMaxLength; ++pos) {
+    for (int pos = 1 + written; pos < coordinateMaxLength; ++pos) {
         buff[pos] = SYM_BLANK;
     }
     buff[coordinateMaxLength] = '\0';
@@ -524,17 +519,23 @@ static bool osdDrawSingleElement(uint8_t item)
         }
 
     case OSD_CRAFT_NAME:
+        // This does not strictly support iterative updating if the craft name changes at run time. But since the craft name is not supposed to be changing this should not matter, and blanking the entire length of the craft name string on update will make it impossible to configure elements to be displayed on the right hand side of the craft name.
+        //TODO: When iterative updating is implemented, change this so the craft name is only printed once whenever the OSD 'flight' screen is entered.
+
         if (strlen(pilotConfig()->name) == 0) {
             strcpy(buff, "CRAFT_NAME");
         } else {
-            for (unsigned int i = 0; i < MAX_NAME_LENGTH; i++) {
-                buff[i] = toupper((unsigned char)pilotConfig()->name[i]);
-                if (pilotConfig()->name[i] == 0) {
-                    buff[i] = SYM_BLANK;
-                }
-            }
-            buff[MAX_NAME_LENGTH] = '\0';
+            unsigned i;
+            for (i = 0; i < MAX_NAME_LENGTH; i++) {
+                if (pilotConfig()->name[i]) {
+                    buff[i] = toupper((unsigned char)pilotConfig()->name[i]);
+                } else {
+                    break;
+                }    
+            }    
+            buff[i] = '\0';
         }
+
         break;
 
     case OSD_THROTTLE_POS:
@@ -644,20 +645,23 @@ static bool osdDrawSingleElement(uint8_t item)
 
     case OSD_WARNINGS:
         {
+
+#define OSD_WARNINGS_MAX_SIZE 11
+#define OSD_FORMAT_MESSAGE_BUFFER_SIZE (OSD_WARNINGS_MAX_SIZE + 1)
+
             const uint16_t enabledWarnings = osdConfig()->enabledWarnings;
 
             const batteryState_e batteryState = getBatteryState();
 
             if (enabledWarnings & OSD_WARNING_BATTERY_CRITICAL && batteryState == BATTERY_CRITICAL) {
-                osdFormatMessage(buff, sizeof(buff), " LAND NOW");
+                osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, " LAND NOW");
                 break;
             }
 
             // Warn when in flip over after crash mode
             if ((enabledWarnings & OSD_WARNING_CRASH_FLIP)
-                  && (isModeActivationConditionPresent(BOXFLIPOVERAFTERCRASH))
-                  && IS_RC_MODE_ACTIVE(BOXFLIPOVERAFTERCRASH)) {
-                osdFormatMessage(buff, sizeof(buff), "CRASH FLIP");
+                  && (isFlipOverAfterCrashMode())) {
+                osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, "CRASH FLIP");
                 break;
             }
 
@@ -666,7 +670,7 @@ static bool osdDrawSingleElement(uint8_t item)
                 const armingDisableFlags_e flags = getArmingDisableFlags();
                 for (int i = 0; i < ARMING_DISABLE_FLAGS_COUNT; i++) {
                     if (flags & (1 << i)) {
-                        osdFormatMessage(buff, sizeof(buff), armingDisableFlagNames[i]);
+                        osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, armingDisableFlagNames[i]);
                         break;
                     }
                 }
@@ -674,24 +678,25 @@ static bool osdDrawSingleElement(uint8_t item)
             }
 
             if (enabledWarnings & OSD_WARNING_BATTERY_WARNING && batteryState == BATTERY_WARNING) {
-                osdFormatMessage(buff, sizeof(buff), "LOW BATTERY");
+                osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, "LOW BATTERY");
                 break;
             }
 
             // Show warning if battery is not fresh
             if (enabledWarnings & OSD_WARNING_BATTERY_NOT_FULL && !ARMING_FLAG(WAS_EVER_ARMED) && (getBatteryState() == BATTERY_OK)
                   && getBatteryAverageCellVoltage() < batteryConfig()->vbatfullcellvoltage) {
-                osdFormatMessage(buff, sizeof(buff), "BATT NOT FULL");
+                osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, "BATT < FULL");
                 break;
             }
 
             // Visual beeper
             if (enabledWarnings & OSD_WARNING_VISUAL_BEEPER && showVisualBeeper) {
-                osdFormatMessage(buff, sizeof(buff), "  * * * *");
+                osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, "  * * * *");
                 break;
             }
 
-            return true;
+            osdFormatMessage(buff, OSD_FORMAT_MESSAGE_BUFFER_SIZE, NULL);
+            break;
         }
 
     case OSD_AVG_CELL_VOLTAGE:
@@ -794,6 +799,7 @@ static bool osdDrawSingleElement(uint8_t item)
     }
 
     displayWrite(osdDisplayPort, elemPosX + elemOffsetX, elemPosY, buff);
+
     return true;
 }
 
