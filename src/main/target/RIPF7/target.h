@@ -135,4 +135,4 @@
 #define TARGET_IO_PORTE 0xffff
 
 #define USABLE_TIMER_CHANNEL_COUNT 5
-#define USED_TIMERS  ( TIM_N(1) | TIM_N(2))
+#define USED_TIMERS  ( TIM_N(1) | TIM_N(2) | TIM_N(5))

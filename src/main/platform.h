@@ -21,7 +21,7 @@
 #pragma GCC poison sprintf snprintf
 #endif
 
-#if defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F722xx)
+#if defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F722xx) || defined(STM32F767xx)
 #include "stm32f7xx.h"
 #include "stm32f7xx_hal.h"
 

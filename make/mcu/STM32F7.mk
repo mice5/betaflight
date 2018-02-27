@@ -129,6 +129,11 @@ LD_SCRIPT       = $(LINKER_DIR)/stm32_flash_f722.ld
 endif
 STARTUP_SRC     = startup_stm32f722xx.s
 TARGET_FLASH   := 512
+else ifeq ($(TARGET),$(filter $(TARGET),$(F767VI_TARGETS)))
+DEVICE_FLAGS   += -DSTM32F767xx 
+LD_SCRIPT       = $(LINKER_DIR)/stm32_flash_f767vi.ld
+STARTUP_SRC     = startup_stm32f767xx.s
+TARGET_FLASH   := 2048
 else
 $(error Unknown MCU for F7 target)
 endif
