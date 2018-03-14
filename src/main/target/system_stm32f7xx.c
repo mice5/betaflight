@@ -68,14 +68,14 @@
 #include "platform.h"
 
 #if !defined  (HSE_VALUE)
-  #define HSE_VALUE    ((uint32_t)8000000) /*!< Default value of the External oscillator in Hz */
+  #define HSE_VALUE    ((uint32_t)25000000) /*!< Default value of the External oscillator in Hz */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSI_VALUE)
   #define HSI_VALUE    ((uint32_t)16000000) /*!< Value of the Internal oscillator in Hz*/
 #endif /* HSI_VALUE */
 
-#define PLL_M     8
+#define PLL_M     25
 #define PLL_N     432
 #define PLL_P     RCC_PLLP_DIV2 /* 2 */
 #define PLL_Q     9
@@ -178,7 +178,7 @@
 #else
       /* Enable HSE Oscillator and activate PLL with HSE as source */
       RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-      RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+      RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
       RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
       RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
       RCC_OscInitStruct.PLL.PLLM = PLL_M;

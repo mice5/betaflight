@@ -82,7 +82,7 @@ include $(ROOT)/make/$(OSFAMILY).mk
 include $(ROOT)/make/tools.mk
 
 # default xtal value for F4 targets
-HSE_VALUE       ?= 8000000
+HSE_VALUE       ?= 25000000
 
 # used for turning on features like VCP and SDCARD
 FEATURES        =
@@ -224,7 +224,6 @@ ASFLAGS     = $(ARCH_FLAGS) \
 
 ifeq ($(LD_FLAGS),)
 LD_FLAGS     = -lm \
-              -nostartfiles \
               --specs=nano.specs \
               -lc \
               -lnosys \
