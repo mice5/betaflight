@@ -60,7 +60,7 @@ FAST_RAM float axisPID_P[3], axisPID_I[3], axisPID_D[3], axisPIDSum[3];
 
 static FAST_RAM float dT;
 
-PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 1);
+PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 2);
 
 #ifdef STM32F10X
 #define PID_PROCESS_DENOM_DEFAULT       1
@@ -74,8 +74,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 1);
 PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .pid_process_denom = PID_PROCESS_DENOM_DEFAULT,
     .runaway_takeoff_prevention = true,
-    .runaway_takeoff_threshold = 60,            // corresponds to a pidSum value of 60% (raw 600) in the blackbox viewer
-    .runaway_takeoff_activate_delay = 75,       // 75ms delay before activation (pidSum above threshold time)
     .runaway_takeoff_deactivate_throttle = 25,  // throttle level % needed to accumulate deactivation time
     .runaway_takeoff_deactivate_delay = 500     // Accumulated time (in milliseconds) before deactivation in successful takeoff
 );
@@ -179,7 +177,9 @@ static FAST_RAM void *ptermYawFilter;
 typedef union dtermFilterLpf_u {
     pt1Filter_t pt1Filter[2];
     biquadFilter_t biquadFilter[2];
+#if defined(USE_FIR_FILTER_DENOISE)
     firFilterDenoise_t denoisingFilter[2];
+#endif
 } dtermFilterLpf_t;
 
 void pidInitFilters(const pidProfile_t *pidProfile)
@@ -241,6 +241,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
                 biquadFilterInitLPF(dtermFilterLpf[axis], pidProfile->dterm_lpf_hz, targetPidLooptime);
             }
             break;
+#if defined(USE_FIR_FILTER_DENOISE)
         case FILTER_FIR:
             dtermLpfApplyFn = (filterApplyFnPtr)firFilterDenoiseUpdate;
             for (int axis = FD_ROLL; axis <= FD_PITCH; axis++) {
@@ -248,6 +249,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
                 firFilterDenoiseInit(dtermFilterLpf[axis], pidProfile->dterm_lpf_hz, targetPidLooptime);
             }
             break;
+#endif
         }
     }
 
