@@ -513,8 +513,8 @@ static bool mspCommonProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_VOLTAGE_METERS: {
         // write out id and voltage meter values, once for each meter we support
         uint8_t count = supportedVoltageMeterCount;
-#ifndef USE_OSD_SLAVE
-        count = supportedVoltageMeterCount - (VOLTAGE_METER_ID_ESC_COUNT - getMotorCount());
+#ifdef USE_ESC_SENSOR
+        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();
 #endif
 
         for (int i = 0; i < count; i++) {
@@ -532,8 +532,8 @@ static bool mspCommonProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_CURRENT_METERS: {
         // write out id and current meter values, once for each meter we support
         uint8_t count = supportedCurrentMeterCount;
-#ifndef USE_OSD_SLAVE
-        count = supportedCurrentMeterCount - (VOLTAGE_METER_ID_ESC_COUNT - getMotorCount());
+#ifdef USE_ESC_SENSOR
+        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();
 #endif
         for (int i = 0; i < count; i++) {
 
@@ -741,6 +741,8 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
 
 static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
 {
+    bool unsupportedCommand = false;
+
     switch (cmdMSP) {
     case MSP_STATUS_EX:
     case MSP_STATUS:
@@ -804,7 +806,7 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
                 sbufWriteU16(dst, gyroRateDps(i));
             }
             for (int i = 0; i < 3; i++) {
-                sbufWriteU16(dst, mag.magADC[i]);
+                sbufWriteU16(dst, lrintf(mag.magADC[i]));
             }
         }
         break;
@@ -967,13 +969,19 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
         break;
 #endif
 
-#ifdef USE_DSHOT
+#if defined(USE_ESC_SENSOR)
     case MSP_ESC_SENSOR_DATA:
-        sbufWriteU8(dst, getMotorCount());
-        for (int i = 0; i < getMotorCount(); i++) {
-            sbufWriteU8(dst, getEscSensorData(i)->temperature);
-            sbufWriteU16(dst, getEscSensorData(i)->rpm);
+        if (feature(FEATURE_ESC_SENSOR)) {
+            sbufWriteU8(dst, getMotorCount());
+            for (int i = 0; i < getMotorCount(); i++) {
+                const escSensorData_t *escData = getEscSensorData(i);
+                sbufWriteU8(dst, escData->temperature);
+                sbufWriteU16(dst, escData->rpm);
+            }
+        } else {
+            unsupportedCommand = true;
         }
+
         break;
 #endif
 
@@ -1185,9 +1193,9 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_FILTER_CONFIG :
-        sbufWriteU8(dst, gyroConfig()->gyro_soft_lpf_hz);
-        sbufWriteU16(dst, currentPidProfile->dterm_lpf_hz);
-        sbufWriteU16(dst, currentPidProfile->yaw_lpf_hz);
+        sbufWriteU8(dst, gyroConfig()->gyro_lowpass_hz);
+        sbufWriteU16(dst, currentPidProfile->dterm_lowpass_hz);
+        sbufWriteU16(dst, currentPidProfile->yaw_lowpass_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_1);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_1);
         sbufWriteU16(dst, currentPidProfile->dterm_notch_hz);
@@ -1276,9 +1284,9 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
         break;
 #endif
     default:
-        return false;
+        unsupportedCommand = true;
     }
-    return true;
+    return !unsupportedCommand;
 }
 
 static mspResult_e mspFcProcessOutCommandWithArg(uint8_t cmdMSP, sbuf_t *arg, sbuf_t *dst)
@@ -1657,9 +1665,9 @@ static mspResult_e mspProcessInCommand(uint8_t cmdMSP, sbuf_t *src)
         break;
 
     case MSP_SET_FILTER_CONFIG:
-        gyroConfigMutable()->gyro_soft_lpf_hz = sbufReadU8(src);
-        currentPidProfile->dterm_lpf_hz = sbufReadU16(src);
-        currentPidProfile->yaw_lpf_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_lowpass_hz = sbufReadU8(src);
+        currentPidProfile->dterm_lowpass_hz = sbufReadU16(src);
+        currentPidProfile->yaw_lowpass_hz = sbufReadU16(src);
         if (sbufBytesRemaining(src) >= 8) {
             gyroConfigMutable()->gyro_soft_notch_hz_1 = sbufReadU16(src);
             gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);

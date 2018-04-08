@@ -40,6 +40,7 @@
 #include "io/motors.h"
 
 #include "fc/config.h"
+#include "fc/controlrate_profile.h"
 #include "fc/rc_controls.h"
 #include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
@@ -64,6 +65,7 @@ PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_MIXER_CONFIG, 0);
 PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .mixerMode = TARGET_DEFAULT_MIXER,
     .yaw_motors_reversed = false,
+    .crashflip_motor_percent = 0,
 );
 
 PG_REGISTER_WITH_RESET_FN(motorConfig_t, motorConfig, PG_MOTOR_CONFIG, 1);
@@ -447,18 +449,6 @@ void mixerConfigureOutput(void)
                 currentMixer[i] = mixers[currentMixerMode].motor[i];
         }
     }
-
-    // in 3D mode, mixer gain has to be halved
-    if (feature(FEATURE_3D)) {
-        if (motorCount > 1) {
-            for (int i = 0; i < motorCount; i++) {
-                currentMixer[i].pitch *= 0.5f;
-                currentMixer[i].roll *= 0.5f;
-                currentMixer[i].yaw *= 0.5f;
-            }
-        }
-    }
-
     mixerResetDisarmedMotors();
 }
 
@@ -671,9 +661,16 @@ static void applyFlipOverAfterCrashModeToMotors(void)
                 signPitch*currentMixer[i].pitch +
                 signRoll*currentMixer[i].roll +
                 signYaw*currentMixer[i].yaw;
-
-            motorOutput = MIN(1.0f, flipPower*motorOutput);
-            motorOutput = motorOutputMin + motorOutput*motorOutputRange;
+                
+            if (motorOutput < 0) {
+                if (mixerConfig()->crashflip_motor_percent > 0) {
+                    motorOutput = -motorOutput * (float)mixerConfig()->crashflip_motor_percent / 100.0f;
+                } else {
+                    motorOutput = disarmMotorOutput;
+                }
+            } 
+            motorOutput = MIN(1.0f, flipPower * motorOutput);
+            motorOutput = motorOutputMin + motorOutput * motorOutputRange;
 
             // Add a little bit to the motorOutputMin so props aren't spinning when sticks are centered
             motorOutput = (motorOutput < motorOutputMin + CRASH_FLIP_DEADBAND) ? disarmMotorOutput : (motorOutput - CRASH_FLIP_DEADBAND);
@@ -721,6 +718,21 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS])
     }
 }
 
+float applyThrottleLimit(float throttle)
+{
+    if (currentControlRateProfile->throttle_limit_percent < 100) {
+        const float throttleLimitFactor = currentControlRateProfile->throttle_limit_percent / 100.0f;
+        switch (currentControlRateProfile->throttle_limit_type) {
+            case THROTTLE_LIMIT_TYPE_SCALE:
+                return throttle * throttleLimitFactor;
+            case THROTTLE_LIMIT_TYPE_CLIP:
+                return MIN(throttle, throttleLimitFactor);
+        }
+    }
+
+    return throttle;
+}
+
 void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
 {
     if (isFlipOverAfterCrashMode()) {
@@ -745,6 +757,11 @@ void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
     // Calculate voltage compensation
     const float vbatCompensationFactor = vbatPidCompensation ? calculateVbatPidCompensation() : 1.0f;
 
+    // Apply the throttle_limit_percent to scale or limit the throttle based on throttle_limit_type
+    if (currentControlRateProfile->throttle_limit_type != THROTTLE_LIMIT_TYPE_OFF) {
+        throttle = applyThrottleLimit(throttle);
+    }
+
     // Find roll/pitch/yaw desired output
     float motorMix[MAX_SUPPORTED_MOTORS];
     float motorMixMax = 0, motorMixMin = 0;
@@ -765,6 +782,10 @@ void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
     }
 
     motorMixRange = motorMixMax - motorMixMin;
+    if (throttleBoost > 0.0f) {
+        float throttlehpf = throttle - pt1FilterApply(&throttleLpf, throttle);
+        throttle = constrainf(throttle + throttleBoost * throttlehpf, 0.0f, 1.0f);
+    }
 
     if (motorMixRange > 1.0f) {
         for (int i = 0; i < motorCount; i++) {

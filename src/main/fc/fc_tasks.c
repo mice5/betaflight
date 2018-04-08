@@ -85,6 +85,17 @@
 
 #include "telemetry/telemetry.h"
 
+#ifdef USE_USB_CDC_HID
+//TODO: Make it platform independent in the future
+#ifdef STM32F4
+#include "vcpf4/usbd_cdc_vcp.h"
+#include "usbd_hid_core.h"
+#elif defined(STM32F7)
+#include "usbd_cdc_interface.h"
+#include "usbd_hid.h"
+#endif
+#endif
+
 #ifdef USE_BST
 void taskBstMasterProcess(timeUs_t currentTimeUs);
 #endif
@@ -138,6 +149,21 @@ static void taskUpdateRxMain(timeUs_t currentTimeUs)
     }
 
     isRXDataNew = true;
+
+#ifdef USE_USB_CDC_HID
+    if (!ARMING_FLAG(ARMED)) {
+        int8_t report[8];
+        for (int i = 0; i < 8; i++) {
+	        	report[i] = scaleRange(constrain(rcData[i], 1000, 2000), 1000, 2000, -127, 127);
+        }
+#ifdef STM32F4
+        USBD_HID_SendReport(&USB_OTG_dev, (uint8_t*)report, sizeof(report));
+#elif defined(STM32F7)
+        extern USBD_HandleTypeDef  USBD_Device;
+        USBD_HID_SendReport(&USBD_Device, (uint8_t*)report, sizeof(report));
+#endif
+    }
+#endif
 
 #if !defined(USE_ALT_HOLD)
     // updateRcCommands sets rcCommand, which is needed by updateAltHoldState and updateSonarAltHoldState

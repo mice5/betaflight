@@ -71,6 +71,9 @@
 #include "drivers/usb_io.h"
 #include "drivers/vtx_rtc6705.h"
 #include "drivers/vtx_common.h"
+#ifdef USE_USB_MSC
+#include "drivers/usb_msc.h"
+#endif
 
 #include "fc/config.h"
 #include "fc/fc_init.h"
@@ -115,6 +118,7 @@
 #include "io/transponder_ir.h"
 #include "io/osd.h"
 #include "io/osd_slave.h"
+#include "io/pidaudio.h"
 #include "io/piniobox.h"
 #include "io/displayport_msp.h"
 #include "io/vtx.h"
@@ -227,7 +231,7 @@ void spiPreInit(void)
 #ifdef MAX7456_SPI_CS_PIN
     spiPreInitCsOutPU(IO_TAG(MAX7456_SPI_CS_PIN)); // XXX 3.2 workaround for Kakute F4. See comment for spiPreInitCSOutPU.
 #endif
-#ifdef USE_SDCARD 
+#ifdef USE_SDCARD
     spiPreInitCs(sdcardConfig()->chipSelectTag);
 #endif
 #ifdef BMP280_CS_PIN
@@ -450,6 +454,19 @@ void init(void)
 #endif
 #endif // USE_SPI
 
+#ifdef USE_USB_MSC
+/* MSC mode will start after init, but will not allow scheduler to run,
+ *  so there is no bottleneck in reading and writing data */
+    mscInit();
+    if (mscCheckBoot() || mscCheckButton()) {
+        if (mscStart() == 0) {
+             mscWaitForButton();
+        } else {
+             NVIC_SystemReset();
+        }
+    }
+#endif
+
 #ifdef USE_I2C
     i2cHardwareConfigure(i2cConfig());
 
@@ -522,6 +539,10 @@ void init(void)
     validateAndFixGyroConfig();
     pidInit(currentPidProfile);
     accInitFilters();
+
+#ifdef USE_PID_AUDIO
+    pidAudioInit();
+#endif
 
 #ifdef USE_SERVOS
     servosInit();
@@ -617,7 +638,7 @@ void init(void)
     }
 #endif
 
-#if defined(USE_CMS) && defined(USE_SPEKTRUM_CMS_TELEMETRY)
+#if defined(USE_CMS) && defined(USE_SPEKTRUM_CMS_TELEMETRY) && defined(USE_TELEMETRY_SRXL)
     // Register the srxl Textgen telemetry sensor as a displayport device
     cmsDisplayPortRegister(displayPortSrxlInit());
 #endif
