@@ -42,7 +42,6 @@ const timerHardware_t timerHardware[USABLE_TIMER_CHANNEL_COUNT] = {
     DEF_TIM(TIM1,  CH1, PA8,  TIM_USE_MOTOR,               0, 0), // S6_OUT
     DEF_TIM(TIM4,  CH1, PB6,  TIM_USE_LED,                 0, 0), // LED D1_ST0, n/a on older AIRBOTF4
 #elif defined(SOULF4)
-	DEF_TIM()
     DEF_TIM(TIM5,  CH2, PA1,  TIM_USE_MOTOR | TIM_USE_LED, 0, 0), // S5_OUT / LED
     DEF_TIM(TIM5,  CH1, PA0,  TIM_USE_MOTOR,               0, 0), // S6_OUT D1_ST2
 #else
