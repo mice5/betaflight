@@ -1,19 +1,24 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
  *
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
  * Author: Chris Hockuba (https://github.com/conkerkh)
  *
  */
@@ -30,6 +35,7 @@
 
 #include "common/utils.h"
 
+#include "blackbox/blackbox.h"
 #include "drivers/io.h"
 #include "drivers/light_led.h"
 #include "drivers/nvic.h"
@@ -42,6 +48,7 @@
 #include "usb_io.h"
 #include "usbd_msc.h"
 #include "msc/usbd_storage.h"
+
 USBD_HandleTypeDef USBD_Device;
 
 #define DEBOUNCE_TIME_MS 20
@@ -63,30 +70,45 @@ void mscInit(void)
 
 uint8_t mscStart(void)
 {
-	ledInit(statusLedConfig());
+    ledInit(statusLedConfig());
 
-	//Start USB
-	usbGenerateDisconnectPulse();
+    //Start USB
+    usbGenerateDisconnectPulse();
 
-	IOInit(IOGetByTag(IO_TAG(PA11)), OWNER_USB, 0);
-	IOInit(IOGetByTag(IO_TAG(PA12)), OWNER_USB, 0);
+    IOInit(IOGetByTag(IO_TAG(PA11)), OWNER_USB, 0);
+    IOInit(IOGetByTag(IO_TAG(PA12)), OWNER_USB, 0);
 
-	USBD_Init(&USBD_Device, &VCP_Desc, 0);
+    USBD_Init(&USBD_Device, &VCP_Desc, 0);
 
-	/** Regsiter class */
-	USBD_RegisterClass(&USBD_Device, USBD_MSC_CLASS);
+    /** Regsiter class */
+    USBD_RegisterClass(&USBD_Device, USBD_MSC_CLASS);
 
-	/** Register interface callbacks */
-	USBD_MSC_RegisterStorage(&USBD_Device, &USBD_MSC_Template_fops);
+    /** Register interface callbacks */
+    switch (blackboxConfig()->device) {
+#ifdef USE_SDCARD
+    case BLACKBOX_DEVICE_SDCARD:
+        USBD_MSC_RegisterStorage(&USBD_Device, &USBD_MSC_MICRO_SDIO_fops);
+        break;
+#endif
 
-	USBD_Start(&USBD_Device);
+#ifdef USE_FLASHFS
+    case BLACKBOX_DEVICE_FLASH:
+        USBD_MSC_RegisterStorage(&USBD_Device, &USBD_MSC_EMFAT_fops);
+        break;
+#endif
 
-	// NVIC configuration for SYSTick
-	NVIC_DisableIRQ(SysTick_IRQn);
-	NVIC_SetPriority(SysTick_IRQn, NVIC_BUILD_PRIORITY(0, 0));
-	NVIC_EnableIRQ(SysTick_IRQn);
+    default:
+        return 1;
+    }
 
-	return 0;
+    USBD_Start(&USBD_Device);
+
+    // NVIC configuration for SYSTick
+    NVIC_DisableIRQ(SysTick_IRQn);
+    NVIC_SetPriority(SysTick_IRQn, NVIC_BUILD_PRIORITY(0, 0));
+    NVIC_EnableIRQ(SysTick_IRQn);
+
+    return 0;
 }
 
 bool mscCheckBoot(void)
@@ -114,16 +136,16 @@ bool mscCheckButton(void)
 
 void mscWaitForButton(void)
 {
-	// In order to exit MSC mode simply disconnect the board, or push the button again.
-	while (mscCheckButton());
-	delay(DEBOUNCE_TIME_MS);
-	while (true) {
-		asm("NOP");
-		if (mscCheckButton()) {
-			*((uint32_t *)0x2001FFF0) = 0xFFFFFFFF;
-			delay(1);
-			NVIC_SystemReset();
-		}
-	}
+    // In order to exit MSC mode simply disconnect the board, or push the button again.
+    while (mscCheckButton());
+    delay(DEBOUNCE_TIME_MS);
+    while (true) {
+        asm("NOP");
+        if (mscCheckButton()) {
+            *((uint32_t *)0x2001FFF0) = 0xFFFFFFFF;
+            delay(1);
+            NVIC_SystemReset();
+        }
+    }
 }
 #endif
