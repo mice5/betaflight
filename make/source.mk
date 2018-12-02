@@ -21,6 +21,7 @@ COMMON_SRC = \
             drivers/exti.c \
             drivers/io.c \
             drivers/light_led.c \
+            drivers/mco.c \
             drivers/pinio.c \
             drivers/resource.c \
             drivers/rcc.c \
@@ -38,9 +39,9 @@ COMMON_SRC = \
             drivers/transponder_ir_erlt.c \
             fc/board_info.c \
             fc/config.c \
-            fc/fc_dispatch.c \
-            fc/fc_hardfaults.c \
-            fc/fc_tasks.c \
+            fc/dispatch.c \
+            fc/hardfaults.c \
+            fc/tasks.c \
             fc/runtime_config.c \
             interface/msp.c \
             interface/msp_box.c \
@@ -52,21 +53,15 @@ COMMON_SRC = \
             io/statusindicator.c \
             io/transponder_ir.c \
             io/usb_cdc_hid.c \
+            io/usb_msc.c \
             msp/msp_serial.c \
             scheduler/scheduler.c \
             sensors/adcinternal.c \
             sensors/battery.c \
             sensors/current.c \
             sensors/voltage.c \
-            target/config_helper.c
-
-OSD_SLAVE_SRC = \
-            io/displayport_max7456.c \
-            osd_slave/osd_slave_init.c \
-            io/osd_slave.c
-
-FC_SRC = \
-            fc/fc_init.c \
+            target/config_helper.c \
+            fc/init.c \
             fc/controlrate_profile.c \
             drivers/camera_control.c \
             drivers/accgyro/gyro_sync.c \
@@ -76,8 +71,8 @@ FC_SRC = \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
             drivers/serial_softserial.c \
-            fc/fc_core.c \
-            fc/fc_rc.c \
+            fc/core.c \
+            fc/rc.c \
             fc/rc_adjustments.c \
             fc/rc_controls.c \
             fc/rc_modes.c \
@@ -101,6 +96,7 @@ FC_SRC = \
             rx/pwm.c \
             rx/rx.c \
             rx/rx_spi.c \
+            rx/rx_spi_common.c \
             rx/crsf.c \
             rx/sbus.c \
             rx/sbus_channels.c \
@@ -143,6 +139,7 @@ FC_SRC = \
             io/displayport_oled.c \
             io/displayport_srxl.c \
             io/displayport_crsf.c \
+            io/displayport_hott.c \
             io/rcdevice_cam.c \
             io/rcdevice.c \
             io/gps.c \
@@ -175,12 +172,7 @@ COMMON_DEVICE_SRC = \
             $(CMSIS_SRC) \
             $(DEVICE_STDPERIPH_SRC)
 
-ifeq ($(OSD_SLAVE),yes)
-TARGET_FLAGS := -DUSE_OSD_SLAVE $(TARGET_FLAGS)
-COMMON_SRC := $(COMMON_SRC) $(OSD_SLAVE_SRC) $(COMMON_DEVICE_SRC)
-else
-COMMON_SRC := $(COMMON_SRC) $(FC_SRC) $(COMMON_DEVICE_SRC)
-endif
+COMMON_SRC := $(COMMON_SRC) $(COMMON_DEVICE_SRC)
 
 ifeq ($(SIMULATOR_BUILD),yes)
 TARGET_FLAGS := -DSIMULATOR_BUILD $(TARGET_FLAGS)
@@ -223,9 +215,9 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             drivers/serial_uart.c \
             drivers/system.c \
             drivers/timer.c \
-            fc/fc_core.c \
-            fc/fc_tasks.c \
-            fc/fc_rc.c \
+            fc/core.c \
+            fc/tasks.c \
+            fc/rc.c \
             fc/rc_controls.c \
             fc/runtime_config.c \
             flight/imu.c \
@@ -265,6 +257,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/compass/compass_fake.c \
             drivers/compass/compass_hmc5883l.c \
             drivers/compass/compass_qmc5883l.c \
+            drivers/compass/compass_lis3mdl.c \
             drivers/display_ug2864hsweg01.c \
             drivers/inverter.c \
             drivers/light_ws2811strip.c \
@@ -281,7 +274,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/vtx_rtc6705_soft_spi.c \
             drivers/vtx_rtc6705.c \
             drivers/vtx_common.c \
-            fc/fc_init.c \
+            fc/init.c \
             fc/board_info.c \
             config/config_eeprom.c \
             config/feature.c \
@@ -364,17 +357,19 @@ SRC += $(COMMON_SRC)
 #excludes
 SRC   := $(filter-out $(MCU_EXCLUDES), $(SRC))
 
-ifneq ($(filter SDCARD,$(FEATURES)),)
+ifneq ($(filter SDCARD_SPI,$(FEATURES)),)
 SRC += \
             drivers/sdcard.c \
+            drivers/sdcard_spi.c \
             drivers/sdcard_standard.c \
             io/asyncfatfs/asyncfatfs.c \
             io/asyncfatfs/fat_standard.c \
             $(MSC_SRC)
 endif
 
-ifneq ($(filter SDIO,$(FEATURES)),)
+ifneq ($(filter SDCARD_SDIO,$(FEATURES)),)
 SRC += \
+            drivers/sdcard.c \
             drivers/sdcard_sdio_baremetal.c \
             drivers/sdcard_standard.c \
             io/asyncfatfs/asyncfatfs.c \

@@ -38,6 +38,7 @@
 #include "drivers/compass/compass_fake.h"
 #include "drivers/compass/compass_hmc5883l.h"
 #include "drivers/compass/compass_qmc5883l.h"
+#include "drivers/compass/compass_lis3mdl.h"
 #include "drivers/io.h"
 #include "drivers/light_led.h"
 
@@ -132,16 +133,23 @@ bool compassDetect(magDev_t *dev)
         busdev->bustype = BUSTYPE_I2C;
         busdev->busdev_u.i2c.device = I2C_CFG_TO_DEV(compassConfig()->mag_i2c_device);
         busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
-#endif
         break;
+#endif
 
 #ifdef USE_SPI
     case BUSTYPE_SPI:
-        busdev->bustype = BUSTYPE_SPI;
-        spiBusSetInstance(busdev, spiInstanceByDevice(SPI_CFG_TO_DEV(compassConfig()->mag_spi_device)));
-        busdev->busdev_u.spi.csnPin = IOGetByTag(compassConfig()->mag_spi_csn);
-#endif
+        {
+            SPI_TypeDef *instance = spiInstanceByDevice(SPI_CFG_TO_DEV(compassConfig()->mag_spi_device));
+            if (!instance) {
+                return false;
+            }
+      
+            busdev->bustype = BUSTYPE_SPI;
+            spiBusSetInstance(busdev, instance);
+            busdev->busdev_u.spi.csnPin = IOGetByTag(compassConfig()->mag_spi_csn);
+        }
         break;
+#endif
 
 #if defined(USE_MAG_AK8963) && (defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250))
     case BUSTYPE_MPU_SLAVE:
@@ -154,8 +162,8 @@ bool compassDetect(magDev_t *dev)
                 return false;
             }
         }
-#endif
         break;
+#endif
 
     default:
         return false;
@@ -178,6 +186,22 @@ bool compassDetect(magDev_t *dev)
             dev->magAlign = MAG_HMC5883_ALIGN;
 #endif
             magHardware = MAG_HMC5883;
+            break;
+        }
+#endif
+        FALLTHROUGH;
+
+    case MAG_LIS3MDL:
+#if defined(USE_MAG_LIS3MDL)
+        if (busdev->bustype == BUSTYPE_I2C) {
+                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+        }
+
+        if (lis3mdlDetect(dev)) {
+#ifdef MAG_LIS3MDL_ALIGN
+            dev->magAlign = MAG_LIS3MDL_ALIGN;
+#endif
+            magHardware = MAG_LIS3MDL;
             break;
         }
 #endif

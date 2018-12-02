@@ -95,6 +95,12 @@ typedef enum {
     OSD_ADJUSTMENT_RANGE,
     OSD_CORE_TEMPERATURE,
     OSD_ANTI_GRAVITY,
+    OSD_MOTOR_DIAG,
+    OSD_G_FORCE,
+    OSD_LOG_STATUS,
+    OSD_FLIP_ARROW,
+    OSD_LINK_QUALITY,
+    OSD_TOTAL_DIST,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -122,6 +128,11 @@ typedef enum {
     OSD_STAT_MAX_ALTITUDE,
     OSD_STAT_BLACKBOX,
     OSD_STAT_BLACKBOX_NUMBER,
+    OSD_STAT_MAX_G_FORCE,
+    OSD_STAT_MAX_ESC_TEMP,
+    OSD_STAT_MAX_ESC_RPM,
+    OSD_STAT_MIN_LINK_QUALITY,
+    OSD_STAT_TOTAL_DISTANCE,
     OSD_STAT_COUNT // MUST BE LAST
 } osd_stats_e;
 
@@ -161,6 +172,9 @@ typedef enum {
     OSD_WARNING_CRASH_FLIP,
     OSD_WARNING_ESC_FAIL,
     OSD_WARNING_CORE_TEMPERATURE,
+    OSD_WARNING_RC_SMOOTHING,
+    OSD_WARNING_FAIL_SAFE,
+    OSD_WARNING_LAUNCH_CONTROL,
     OSD_WARNING_COUNT // MUST BE LAST
 } osdWarningsFlags_e;
 
@@ -191,6 +205,7 @@ typedef struct osdConfig_s {
     int16_t esc_rpm_alarm;
     int16_t esc_current_alarm;
     uint8_t core_temp_alarm;
+    uint8_t ahInvert;         // invert the artificial horizon
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);
@@ -199,11 +214,13 @@ extern timeUs_t resumeRefreshAt;
 
 struct displayPort_s;
 void osdInit(struct displayPort_s *osdDisplayPort);
+bool osdInitialized(void);
 void osdResetAlarms(void);
 void osdUpdate(timeUs_t currentTimeUs);
 void osdStatSetState(uint8_t statIndex, bool enabled);
 bool osdStatGetState(uint8_t statIndex);
 void osdWarnSetState(uint8_t warningIndex, bool enabled);
 bool osdWarnGetState(uint8_t warningIndex);
+void osdSuppressStats(bool flag);
 
 

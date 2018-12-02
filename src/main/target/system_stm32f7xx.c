@@ -100,19 +100,6 @@
   * @{
   */
 
-/************************* Miscellaneous Configuration ************************/
-
-/*!< Uncomment the following line if you need to relocate your vector Table in
-     Internal SRAM. */
-/* #define VECT_TAB_SRAM */
-#ifdef CUSTOM_VECT_TAB_OFFSET
-#define VECT_TAB_OFFSET CUSTOM_VECT_TAB_OFFSET
-#else
-#define VECT_TAB_OFFSET  0x00 /*!< Vector Table base offset field.*/
-#endif
-                                   /*This value must be a multiple of 0x200. */
-/******************************************************************************/
-
 /**
   * @}
   */
@@ -242,6 +229,19 @@
           while (1);
       }
 
+      // Configure PLLI2S for 27MHz operation
+      // Actual output will be done by mcoInit in drivers/mco.c
+
+      PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_PLLI2S;
+      PeriphClkInitStruct.PLLI2S.PLLI2SN = 216;
+      PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
+      PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
+      PeriphClkInitStruct.PLLI2SDivQ = 1;
+      if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+      {
+          while (1);
+      }
+
     // Activating the timerprescalers while the APBx prescalers are 1/2/4 will connect the TIMxCLK to HCLK which has been configured to 216MHz
     __HAL_RCC_TIMCLKPRESCALER(RCC_TIMPRES_ACTIVATED);
 
@@ -294,7 +294,7 @@ void OverclockRebootIfNecessary(uint32_t overclockLevel)
     const pllConfig_t * const pll = overclockLevels + overclockLevel;
 
     // Reboot to adjust overclock frequency
-    if (SystemCoreClock != (pll->n / pll->p) * 1000000) {
+    if (SystemCoreClock != (pll->n / pll->p) * 1000000U) {
         REQUEST_OVERCLOCK = REQUEST_OVERCLOCK_MAGIC_COOKIE;
         CURRENT_OVERCLOCK_LEVEL = overclockLevel;
         __disable_irq();
@@ -346,12 +346,15 @@ void SystemInit(void)
     /* Disable all interrupts */
     RCC->CIR = 0x00000000;
 
-  /* Configure the Vector Table location add offset address ------------------*/
-#ifdef VECT_TAB_SRAM
-    SCB->VTOR = RAMDTCM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
-#else
-    SCB->VTOR = FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
-#endif
+    /* Configure the Vector Table location add offset address ------------------*/
+    extern uint8_t isr_vector_table_base;
+    const uint32_t vtorOffset = (uint32_t) &isr_vector_table_base;
+#define VTOR_OFFSET_ALIGNMENT 0x200
+    if (vtorOffset % VTOR_OFFSET_ALIGNMENT != 0) {
+        // ISR vector table base is not 512 byte aligned
+        while (1);
+    }
+    SCB->VTOR = vtorOffset;
 
     /* Enable I-Cache */
     if (INSTRUCTION_CACHE_ENABLE) {
