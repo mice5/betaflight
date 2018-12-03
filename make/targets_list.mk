@@ -12,6 +12,7 @@ OFFICIAL_TARGETS  = \
     SPRACINGF3NEO \
     SPRACINGF4EVO \
     SPRACINGF7DUAL \
+    RIPF7 \
     STM32F3DISCOVERY
 
 ALT_TARGET_PATHS  = $(filter-out %/target,$(basename $(wildcard $(ROOT)/src/main/target/*/*.mk)))

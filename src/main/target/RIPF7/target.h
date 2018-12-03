@@ -29,26 +29,30 @@
 #define LED1_PIN   PC12
 #define LED1_INVERTED
 
-#define BEEPER   PA4
+#define USE_BEEPER
+#define BEEPER_PIN              PA4
 #define BEEPER_INVERTED
 
-#define MPU6500_CS_PIN        PC15
-#define MPU6500_SPI_INSTANCE  SPI4
-
-#define ACC
-//#define USE_ACC_MPU6500
-#define USE_ACC_SPI_MPU6500
-#define ACC_MPU6500_ALIGN       CW90_DEG
-
-#define GYRO
-//#define USE_GYRO_MPU6500
-#define USE_GYRO_SPI_MPU6500
-#define GYRO_MPU6500_ALIGN      CW90_DEG
-
-// ICM20602 interrupts
-#define USE_MPU_DATA_READY_SIGNAL
-#define MPU_INT_EXTI PC14
+/* UPDATE */
+// MPU interrupt
 #define USE_EXTI
+#define USE_GYRO_EXTI
+#define GYRO_1_EXTI_PIN         PC14
+//#define DEBUG_MPU_DATA_READY_INTERRUPT
+#define USE_MPU_DATA_READY_SIGNAL
+#define ENSURE_MPU_DATA_READY_IS_LOW
+
+#define GYRO_1_CS_PIN           PC15
+#define GYRO_1_SPI_INSTANCE     SPI4
+
+#define USE_ACC
+#define USE_ACC_SPI_MPU6500
+#define ACC_1_ALIGN             CW90_DEG
+
+#define USE_GYRO
+#define USE_GYRO_SPI_MPU6500
+#define GYRO_1_ALIGN            CW90_DEG
+/* UPDATE */
 
 //#define MAG
 //#define USE_MAG_HMC5883
@@ -56,16 +60,18 @@
 //#define MAG_HMC5883_ALIGN CW270_DEG_FLIP
 //#define MAG_HMC5883_ALIGN CW90_DEG
 
-#define BARO
+#define USE_BARO
 #define USE_BARO_MS5611
 #define USE_BARO_SPI_MS5611
 #define MS5611_CS_PIN           PC13
 #define MS5611_SPI_INSTANCE		SPI4
 
-#define M25P16_CS_PIN           PB12
-#define M25P16_SPI_INSTANCE     SPI1
+/* UPDATE */
+#define FLASH_CS_PIN         PB12
+#define FLASH_SPI_INSTANCE   SPI1
 #define USE_FLASHFS
 #define USE_FLASH_M25P16
+/* UPDATE */
 
 #define USE_VCP
 #define VBUS_SENSING_PIN PA9

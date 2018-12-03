@@ -139,6 +139,9 @@
 #elif defined(STM32F765xx)
 #define MCU_TYPE_ID   9
 #define MCU_TYPE_NAME "F765"
+#elif defined(STM32F767xx)
+#define MCU_TYPE_ID   10
+#define MCU_TYPE_NAME "F767"
 #else
 #define MCU_TYPE_ID   255
 #define MCU_TYPE_NAME "Unknown MCU"
