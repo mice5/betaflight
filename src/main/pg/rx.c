@@ -20,7 +20,7 @@
 
 #include "platform.h"
 
-#if defined(USE_PWM) || defined(USE_PPM) || defined(USE_SERIAL_RX) || defined(USE_RX_MSP)
+#if defined(USE_PWM) || defined(USE_PPM) || defined(USE_SERIAL_RX) || defined(USE_RX_MSP) || defined(USE_RX_SPI)
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -55,11 +55,12 @@ void pgResetFn_rxConfig(rxConfig_t *rxConfig)
         .rssi_scale = RSSI_SCALE_DEFAULT,
         .rssi_offset = 0,
         .rssi_invert = 0,
+        .rssi_src_frame_lpf_period = 30,
         .rcInterpolation = RC_SMOOTHING_AUTO,
         .rcInterpolationChannels = INTERPOLATION_CHANNELS_RPYT,
         .rcInterpolationInterval = 19,
         .fpvCamAngleDegrees = 0,
-        .airModeActivateThreshold = 32,
+        .airModeActivateThreshold = 25,
         .max_aux_channel = DEFAULT_AUX_CHANNEL_COUNT,
         .rc_smoothing_type = RC_SMOOTHING_TYPE_FILTER,
         .rc_smoothing_input_cutoff = 0,      // automatically calculate the cutoff by default

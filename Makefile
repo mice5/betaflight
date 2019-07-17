@@ -16,13 +16,16 @@
 #
 
 # The target to build, see VALID_TARGETS below
-TARGET    ?= BETAFLIGHTF3
+TARGET    ?= OMNIBUSF4
 
 # Compile-time options
 OPTIONS   ?=
 
 # compile for OpenPilot BootLoader support
 OPBL      ?= no
+
+# compile for External Storage Bootloader support
+EXST      ?= no
 
 # Debugger optons:
 #   empty           - ordinary build with all optimizations enabled
@@ -35,7 +38,7 @@ DEBUG     ?=
 DEBUG_HARDFAULTS ?=
 
 # Serial port/Device for flashing
-SERIAL_DEVICE   ?= $(firstword $(wildcard /dev/ttyUSB*) no-port-found)
+SERIAL_DEVICE   ?= $(firstword $(wildcard /dev/ttyACM*) $(firstword $(wildcard /dev/ttyUSB*) no-port-found))
 
 # Flash size (KB).  Some low-end chips actually have more flash than advertised, use this to override.
 FLASH_SIZE ?=
@@ -54,8 +57,9 @@ OBJECT_DIR      := $(ROOT)/obj/main
 BIN_DIR         := $(ROOT)/obj
 CMSIS_DIR       := $(ROOT)/lib/main/CMSIS
 INCLUDE_DIRS    := $(SRC_DIR) \
-                   $(ROOT)/src/main/target
-LINKER_DIR      := $(ROOT)/src/main/target/link
+                   $(ROOT)/src/main/target \
+                   $(ROOT)/src/main/startup
+LINKER_DIR      := $(ROOT)/src/link
 
 ## V                 : Set verbosity level based on the V= parameter
 ##                     V=0 Low
@@ -89,6 +93,13 @@ HSE_VALUE       ?= 8000000
 
 # used for turning on features like VCP and SDCARD
 FEATURES        =
+
+# used to disable features based on flash space shortage (larger number => more features disabled)
+FEATURE_CUT_LEVEL_SUPPLIED := $(FEATURE_CUT_LEVEL)
+FEATURE_CUT_LEVEL =
+
+# The list of targets to build for 'pre-push'
+PRE_PUSH_TARGET_LIST ?= OMNIBUSF4 STM32F405 SPRACINGF7DUAL STM32F7X2 SITL test-representative
 
 include $(ROOT)/make/targets.mk
 
@@ -155,6 +166,12 @@ ifneq ($(HSE_VALUE),)
 DEVICE_FLAGS  := $(DEVICE_FLAGS) -DHSE_VALUE=$(HSE_VALUE)
 endif
 
+ifneq ($(FEATURE_CUT_LEVEL_SUPPLIED),)
+DEVICE_FLAGS  := $(DEVICE_FLAGS) -DFEATURE_CUT_LEVEL=$(FEATURE_CUT_LEVEL_SUPPLIED)
+else ifneq ($(FEATURE_CUT_LEVEL),)
+DEVICE_FLAGS  := $(DEVICE_FLAGS) -DFEATURE_CUT_LEVEL=$(FEATURE_CUT_LEVEL)
+endif
+
 TARGET_DIR     = $(ROOT)/src/main/target/$(BASE_TARGET)
 TARGET_DIR_SRC = $(notdir $(wildcard $(TARGET_DIR)/*.c))
 
@@ -201,6 +218,7 @@ CC_DEBUG_OPTIMISATION   := $(OPTIMISE_DEFAULT)
 CC_DEFAULT_OPTIMISATION := $(OPTIMISATION_BASE) $(OPTIMISE_DEFAULT)
 CC_SPEED_OPTIMISATION   := $(OPTIMISATION_BASE) $(OPTIMISE_SPEED)
 CC_SIZE_OPTIMISATION    := $(OPTIMISATION_BASE) $(OPTIMISE_SIZE)
+CC_NO_OPTIMISATION      := 
 
 CFLAGS     += $(ARCH_FLAGS) \
               $(addprefix -D,$(OPTIONS)) \
@@ -225,6 +243,7 @@ CFLAGS     += $(ARCH_FLAGS) \
               $(EXTRA_FLAGS)
 
 ASFLAGS     = $(ARCH_FLAGS) \
+              $(DEBUG_FLAGS) \
               -x assembler-with-cpp \
               $(addprefix -I,$(INCLUDE_DIRS)) \
               -MMD -MP
@@ -259,14 +278,18 @@ CPPCHECK        = cppcheck $(CSOURCES) --enable=all --platform=unix64 \
 #
 # Things we will build
 #
+TARGET_S19      = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET).s19
 TARGET_BIN      = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET).bin
 TARGET_HEX      = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET).hex
 TARGET_ELF      = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).elf
+TARGET_EXST_ELF = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET)_EXST.elf
+TARGET_UNPATCHED_BIN = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET)_UNPATCHED.bin
 TARGET_LST      = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).lst
 TARGET_OBJS     = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $(SRC))))
 TARGET_DEPS     = $(addsuffix .d,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $(SRC))))
 TARGET_MAP      = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).map
 
+TARGET_EXST_HASH_SECTION_FILE = $(OBJECT_DIR)/$(TARGET)/exst_hash_section.bin
 
 CLEAN_ARTIFACTS := $(TARGET_BIN)
 CLEAN_ARTIFACTS += $(TARGET_HEX)
@@ -282,36 +305,89 @@ $(OBJECT_DIR)/$(TARGET)/build/version.o : $(SRC)
 $(TARGET_LST): $(TARGET_ELF)
 	$(V0) $(OBJDUMP) -S --disassemble $< > $@
 
+
+$(TARGET_S19): $(TARGET_ELF)
+	@echo "Creating srec/S19 $(TARGET_S19)" "$(STDOUT)"
+	$(V1) $(OBJCOPY) --output-target=srec $(TARGET_S19)
+
+ifeq ($(EXST),no)
+$(TARGET_BIN): $(TARGET_ELF)
+	@echo "Creating BIN $(TARGET_BIN)" "$(STDOUT)"
+	$(V1) $(OBJCOPY) -O binary $< $@
+	
 $(TARGET_HEX): $(TARGET_ELF)
 	@echo "Creating HEX $(TARGET_HEX)" "$(STDOUT)"
 	$(V1) $(OBJCOPY) -O ihex --set-start 0x8000000 $< $@
 
-$(TARGET_BIN): $(TARGET_ELF)
-	@echo "Creating BIN $(TARGET_BIN)" "$(STDOUT)"
+else
+CLEAN_ARTIFACTS += $(TARGET_UNPATCHED_BIN) $(TARGET_EXST_HASH_SECTION_FILE) $(TARGET_EXST_ELF)
+
+$(TARGET_UNPATCHED_BIN): $(TARGET_ELF)
+	@echo "Creating BIN (without checksum) $(TARGET_UNPATCHED_BIN)" "$(STDOUT)"
 	$(V1) $(OBJCOPY) -O binary $< $@
 
-$(TARGET_ELF):  $(TARGET_OBJS)
+$(TARGET_BIN): $(TARGET_UNPATCHED_BIN)
+	@echo "Creating EXST $(TARGET_BIN)" "$(STDOUT)"
+# Linker script should allow .bin generation from a .elf which results in a file that is the same length as the FIRMWARE_SIZE.
+# These 'dd' commands will pad a short binary to length FIRMWARE_SIZE.
+	$(V1) dd if=/dev/zero ibs=1k count=$(FIRMWARE_SIZE) of=$(TARGET_BIN)
+	$(V1) dd if=$(TARGET_UNPATCHED_BIN) of=$(TARGET_BIN) conv=notrunc
+
+	@echo "Generating MD5 hash of binary" "$(STDOUT)"
+	$(V1) openssl dgst -md5 $(TARGET_BIN) > $(TARGET_UNPATCHED_BIN).md5 
+	
+	@echo "Patching MD5 hash into binary" "$(STDOUT)"
+	$(V1) cat $(TARGET_UNPATCHED_BIN).md5 | awk '{printf("%08x: %s",(1024*$(FIRMWARE_SIZE))-16,$$2);}' | xxd -r - $(TARGET_BIN)
+	$(V1) echo $(FIRMWARE_SIZE) | awk '{printf("-s 0x%08x -l 16 -c 16 %s",(1024*$$1)-16,"$(TARGET_BIN)");}' | xargs xxd
+
+	@echo "Patching MD5 hash into exst elf" "$(STDOUT)"
+	$(OBJCOPY) $(TARGET_ELF) --dump-section .exst_hash=$(TARGET_EXST_HASH_SECTION_FILE)
+	$(V1) cat $(TARGET_UNPATCHED_BIN).md5 | awk '{printf("%08x: %s",64-16,$$2);}' | xxd -r - $(TARGET_EXST_HASH_SECTION_FILE)
+	$(OBJCOPY) $(TARGET_ELF) $(TARGET_EXST_ELF) --update-section .exst_hash=$(TARGET_EXST_HASH_SECTION_FILE)
+
+$(TARGET_HEX): $(TARGET_BIN)
+	@echo "Creating EXST HEX from patched EXST ELF $(TARGET_HEX)" "$(STDOUT)"
+	$(V1) $(OBJCOPY) -O ihex --set-start 0x8000000 $(TARGET_EXST_ELF) $@
+
+endif
+
+$(TARGET_ELF): $(TARGET_OBJS) $(LD_SCRIPT)
 	@echo "Linking $(TARGET)" "$(STDOUT)"
-	$(V1) $(CROSS_CC) -o $@ $^ $(LD_FLAGS)
+	$(V1) $(CROSS_CC) -o $@ $(filter-out %.ld,$^) $(LD_FLAGS)
 	$(V1) $(SIZE) $(TARGET_ELF)
 
 # Compile
+
+## compile_file takes two arguments: (1) optimisation description string and (2) optimisation compiler flag
+define compile_file
+	echo "%% ($(1)) $<" "$(STDOUT)" && \
+	$(CROSS_CC) -c -o $@ $(CFLAGS) $(2) $<
+endef
+
 ifeq ($(DEBUG),GDB)
 $(OBJECT_DIR)/$(TARGET)/%.o: %.c
 	$(V1) mkdir -p $(dir $@)
-	$(V1) echo "%% (debug) $(notdir $<)" "$(STDOUT)" && \
-	$(CROSS_CC) -c -o $@ $(CFLAGS) $(CC_DEBUG_OPTIMISATION) $<
+	$(V1) $(if $(findstring $<,$(NOT_OPTIMISED_SRC)), \
+		$(call compile_file,not optimised, $(CC_NO_OPTIMISATION)) \
+	, \
+		$(call compile_file,debug,$(CC_DEBUG_OPTIMISATION)) \
+	)
 else
 $(OBJECT_DIR)/$(TARGET)/%.o: %.c
 	$(V1) mkdir -p $(dir $@)
-	$(V1) $(if $(findstring $(subst ./src/main/,,$<),$(SPEED_OPTIMISED_SRC)), \
-	echo "%% (speed optimised) $(notdir $<)" "$(STDOUT)" && \
-	$(CROSS_CC) -c -o $@ $(CFLAGS) $(CC_SPEED_OPTIMISATION) $<, \
-	$(if $(findstring $(subst ./src/main/,,$<),$(SIZE_OPTIMISED_SRC)), \
-	echo "%% (size optimised) $(notdir $<)" "$(STDOUT)" && \
-	$(CROSS_CC) -c -o $@ $(CFLAGS) $(CC_SIZE_OPTIMISATION) $<, \
-	echo "%% $(notdir $<)" "$(STDOUT)" && \
-	$(CROSS_CC) -c -o $@ $(CFLAGS) $(CC_DEFAULT_OPTIMISATION) $<))
+	$(V1) $(if $(findstring $<,$(NOT_OPTIMISED_SRC)), \
+		$(call compile_file,not optimised,$(CC_NO_OPTIMISATION)) \
+	, \
+		$(if $(findstring $(subst ./src/main/,,$<),$(SPEED_OPTIMISED_SRC)), \
+			$(call compile_file,speed optimised,$(CC_SPEED_OPTIMISATION)) \
+		, \
+			$(if $(findstring $(subst ./src/main/,,$<),$(SIZE_OPTIMISED_SRC)), \
+				$(call compile_file,size optimised,$(CC_SIZE_OPTIMISATION)) \
+			, \
+				$(call compile_file,optimised,$(CC_DEFAULT_OPTIMISATION)) \
+			) \
+		) \
+	)
 endif
 
 # Assemble
@@ -334,6 +410,10 @@ all_with_unsupported: $(VALID_TARGETS)
 
 ## unsupported : Build unsupported targets
 unsupported: $(UNSUPPORTED_TARGETS)
+
+## pre-push : The minimum verification that should be run before pushing, to check if CI has a chance of succeeding
+pre-push:
+	$(MAKE) $(addsuffix _clean,$(PRE_PUSH_TARGET_LIST)) $(PRE_PUSH_TARGET_LIST) EXTRA_FLAGS=-Werror
 
 ## official          : Build all official (travis) targets
 official: $(OFFICIAL_TARGETS)
@@ -361,7 +441,6 @@ $(VALID_TARGETS):
 $(NOBUILD_TARGETS):
 	$(MAKE) TARGET=$@
 
-CLEAN_TARGETS = $(addprefix clean_,$(VALID_TARGETS) )
 TARGETS_CLEAN = $(addsuffix _clean,$(VALID_TARGETS) )
 
 ## clean             : clean up temporary / machine-generated files
@@ -371,32 +450,45 @@ clean:
 	$(V0) rm -rf $(OBJECT_DIR)/$(TARGET)
 	@echo "Cleaning $(TARGET) succeeded."
 
-## clean_test        : clean up temporary / machine-generated files (tests)
-clean_test:
-	$(V0) cd src/test && $(MAKE) clean || true
+## test_clean        : clean up temporary / machine-generated files (tests)
+test-%_clean:
+	$(MAKE) test_clean
 
-## clean_<TARGET>    : clean up one specific target
-$(CLEAN_TARGETS):
-	$(V0) $(MAKE) -j TARGET=$(subst clean_,,$@) clean
+test_clean:
+	$(V0) cd src/test && $(MAKE) clean || true
 
 ## <TARGET>_clean    : clean up one specific target (alias for above)
 $(TARGETS_CLEAN):
 	$(V0) $(MAKE) -j TARGET=$(subst _clean,,$@) clean
 
 ## clean_all         : clean all valid targets
-clean_all: $(CLEAN_TARGETS)
+clean_all: $(TARGETS_CLEAN) test_clean
 
-## all_clean         : clean all valid targets (alias for above)
-all_clean: $(TARGETS_CLEAN)
+TARGETS_FLASH = $(addsuffix _flash,$(VALID_TARGETS) )
 
+## <TARGET>_flash    : build and flash a target
+$(TARGETS_FLASH):
+	$(V0) $(MAKE) binary hex TARGET=$(subst _flash,,$@)
+ifneq (,$(findstring /dev/ttyUSB,$(SERIAL_DEVICE)))
+	$(V0) $(MAKE) tty_flash TARGET=$(subst _flash,,$@)
+else
+	$(V0) $(MAKE) dfu_flash TARGET=$(subst _flash,,$@)
+endif
 
-flash_$(TARGET): $(TARGET_HEX)
+## tty_flash         : flash firmware (.hex) onto flight controller via a serial port
+tty_flash:
 	$(V0) stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
-	$(V0) echo -n 'R' >$(SERIAL_DEVICE)
+	$(V0) echo -n 'R' > $(SERIAL_DEVICE)
 	$(V0) stm32flash -w $(TARGET_HEX) -v -g 0x0 -b 115200 $(SERIAL_DEVICE)
 
-## flash             : flash firmware (.hex) onto flight controller
-flash: flash_$(TARGET)
+## dfu_flash         : flash firmware (.bin) onto flight controller via a DFU mode
+dfu_flash:
+ifneq (no-port-found,$(SERIAL_DEVICE))
+	# potentially this is because the MCU already is in DFU mode, try anyway
+	$(V0) echo -n 'R' > $(SERIAL_DEVICE)
+	$(V0) sleep 1
+endif
+	$(V0) dfu-util -a 0 -D $(TARGET_BIN) -s 0x08000000:leave
 
 st-flash_$(TARGET): $(TARGET_BIN)
 	$(V0) st-flash --reset write $< 0x08000000
@@ -411,6 +503,9 @@ endif
 
 binary:
 	$(V0) $(MAKE) -j $(TARGET_BIN)
+
+srec:
+	$(V0) $(MAKE) -j $(TARGET_S19)
 
 hex:
 	$(V0) $(MAKE) -j $(TARGET_HEX)
@@ -483,42 +578,65 @@ target-mcu:
 
 ## targets-by-mcu    : make all targets that have a MCU_TYPE mcu
 targets-by-mcu:
-	@echo "Building all $(MCU_TYPE) targets..."
 	$(V1) for target in $(VALID_TARGETS); do \
 		TARGET_MCU_TYPE=$$($(MAKE) -s TARGET=$${target} target-mcu); \
 		if [ "$${TARGET_MCU_TYPE}" = "$${MCU_TYPE}" ]; then \
-			echo "Building target $${target}..."; \
-			$(MAKE) TARGET=$${target}; \
-			if [ $$? -ne 0 ]; then \
-				echo "Building target $${target} failed, aborting."; \
-				exit 1; \
+			if [ "$${DO_BUILD}" = 1 ]; then \
+				echo "Building target $${target}..."; \
+				$(MAKE) TARGET=$${target}; \
+				if [ $$? -ne 0 ]; then \
+					echo "Building target $${target} failed, aborting."; \
+					exit 1; \
+				fi; \
+			else \
+				echo -n "$${target} "; \
 			fi; \
 		fi; \
 	done
+	@echo
 
 ## targets-f3        : make all F3 targets
 targets-f3:
+	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F3 DO_BUILD=1
+
+targets-f3-print:
 	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F3
 
 ## targets-f4        : make all F4 targets
 targets-f4:
+	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F4 DO_BUILD=1
+
+targets-f4-print:
 	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F4
 
 ## targets-f7        : make all F7 targets
 targets-f7:
+	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F7 DO_BUILD=1
+
+targets-f7-print:
 	$(V1) $(MAKE) -s targets-by-mcu MCU_TYPE=STM32F7
 
-## test              : run the cleanflight test suite
-## junittest         : run the cleanflight test suite, producing Junit XML result files.
-test junittest:
+## test              : run the Betaflight test suite
+## junittest         : run the Betaflight test suite, producing Junit XML result files.
+## test-representative: run a representative subset of the Betaflight test suite (i.e. run all tests, but run each expanded test only for one target)
+## test-all: run the Betaflight test suite including all per-target expanded tests
+test junittest test-all test-representative:
+	$(V0) cd src/test && $(MAKE) $@
+
+## test_help         : print the help message for the test suite (including a list of the available tests)
+test_help:
+	$(V0) cd src/test && $(MAKE) help
+
+## test_%            : run test 'test_%' from the test suite
+test_%:
 	$(V0) cd src/test && $(MAKE) $@
 
 
 check-target-independence:
 	$(V1) for test_target in $(VALID_TARGETS); do \
-		FOUND=$$(grep -rE "\W$${test_target}\W?" src/main | grep -vE "(//)|(/\*).*\W$${test_target}\W?" | grep -vE "^src/main/target"); \
+		FOUND=$$(grep -rE "\W$${test_target}(\W.*)?$$" src/main | grep -vE "(//)|(/\*).*\W$${test_target}(\W.*)?$$" | grep -vE "^src/main/target"); \
 		if [ "$${FOUND}" != "" ]; then \
-			echo "Target dependencies found:"; \
+			echo "Target dependencies for target '$${test_target}' found:"; \
 			echo "$${FOUND}"; \
 			exit 1; \
 		fi; \
@@ -537,10 +655,18 @@ check-fastram-usage-correctness:
 		echo "Trivially initialized FAST_RAM variables found, use FAST_RAM_ZERO_INIT instead to save FLASH:"; \
 		echo "$${TRIVIALLY_INITIALIZED}\n$${EXPLICITLY_TRIVIALLY_INITIALIZED}"; \
 		exit 1; \
-	fi;
+	fi
+
+check-platform-included:
+	$(V1) PLATFORM_NOT_INCLUDED=$$(find src/main -type d -name target -prune -o -type f -name \*.c -exec grep -L "^#include \"platform.h\"" {} \;); \
+	if [ "$$(echo $${PLATFORM_NOT_INCLUDED} | grep -v -e '^$$' | wc -l)" -ne 0 ]; then \
+		echo "The following compilation units do not include the required target specific configuration provided by 'platform.h':"; \
+		echo "$${PLATFORM_NOT_INCLUDED}"; \
+		exit 1; \
+	fi
 
 # rebuild everything when makefile changes
-$(TARGET_OBJS) : Makefile
+$(TARGET_OBJS): Makefile $(TARGET_DIR)/target.mk $(wildcard make/*)
 
 # include auto-generated dependencies
 -include $(TARGET_DEPS)

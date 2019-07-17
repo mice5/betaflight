@@ -26,12 +26,9 @@
 
 #include "build/build_config.h"
 
+#include "cli/cli.h"
+
 #include "common/utils.h"
-
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
-
-#include "fc/config.h"
 
 #include "drivers/time.h"
 #include "drivers/system.h"
@@ -51,11 +48,14 @@
 #include "drivers/serial_usb_vcp.h"
 #endif
 
+#include "fc/config.h"
+
 #include "io/serial.h"
 
-#include "interface/cli.h"
-
 #include "msp/msp_serial.h"
+
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
 #ifdef USE_TELEMETRY
 #include "telemetry/telemetry.h"
@@ -275,6 +275,9 @@ bool isSerialConfigValid(const serialConfig_t *serialConfigToCheck)
 
         if (portConfig->functionMask & FUNCTION_MSP) {
             mspPortCount++;
+        } else if (portConfig->identifier == SERIAL_PORT_USB_VCP) {
+            // Require MSP to be enabled for the VCP port
+            return false;
         }
 
         uint8_t bitCount = BITCOUNT(portConfig->functionMask);

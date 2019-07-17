@@ -31,17 +31,17 @@
 #include "drivers/nvic.h"
 #include "drivers/io.h"
 #include "drivers/dma.h"
+#include "drivers/dma_reqmap.h"
 
 #include "drivers/time.h"
+
+#include "pg/bus_spi.h" // For spiPinConfig_t, which is unused but should be defined
+#include "pg/sdio.h"
 
 #include "drivers/sdcard.h"
 #include "drivers/sdcard_impl.h"
 #include "drivers/sdcard_standard.h"
-
 #include "drivers/sdmmc_sdio.h"
-
-#include "pg/pg.h"
-#include "pg/sdio.h"
 
 // Use this to speed up writing to SDCARD... asyncfatfs has limited support for multiblock write
 #define FATFS_BLOCK_CACHE_SIZE 16
@@ -87,7 +87,7 @@ static void sdcard_reset(void)
 {
     if (SD_Init() != 0) {
         sdcard.failureCount++;
-        if (sdcard.failureCount >= SDCARD_MAX_CONSECUTIVE_FAILURES || sdcard_isInserted() == SD_NOT_PRESENT) {
+        if (sdcard.failureCount >= SDCARD_MAX_CONSECUTIVE_FAILURES || !sdcard_isInserted()) {
             sdcard.state = SDCARD_STATE_NOT_PRESENT;
         } else {
             sdcard.operationStartTime = millis();
@@ -173,7 +173,10 @@ static bool sdcard_checkInitDone(void)
 {
     if (SD_GetState()) {
         SD_CardType_t *sdtype = &SD_CardType;
-        SD_GetCardInfo();
+        SD_Error_t errorState = SD_GetCardInfo();
+        if (errorState != SD_OK) {
+            return false;
+        }
 
         sdcard.version = (*sdtype) ? 2 : 1;
         sdcard.highCapacity = (*sdtype == 2) ? 1 : 0;
@@ -187,33 +190,49 @@ static bool sdcard_checkInitDone(void)
 /**
  * Begin the initialization process for the SD card. This must be called first before any other sdcard_ routine.
  */
-static void sdcardSdio_init(const sdcardConfig_t *config)
+static void sdcardSdio_init(const sdcardConfig_t *config, const spiPinConfig_t *spiConfig)
 {
+    UNUSED(spiConfig);
+
     sdcard.enabled = config->mode;
     if (!sdcard.enabled) {
         sdcard.state = SDCARD_STATE_NOT_PRESENT;
         return;
     }
-    sdcard.dmaIdentifier = config->dmaIdentifier;
+
+#ifdef USE_DMA_SPEC
+#if !defined(STM32H7) // H7 uses IDMA
+    const dmaChannelSpec_t *dmaChannelSpec = dmaGetChannelSpecByPeripheral(DMA_PERIPH_SDIO, 0, sdioConfig()->dmaopt);
+
+    if (!dmaChannelSpec) {
+        sdcard.state = SDCARD_STATE_NOT_PRESENT;
+        return;
+    }
+
+    sdcard.dmaIdentifier = dmaGetIdentifier(dmaChannelSpec->ref);
+
     if (sdcard.dmaIdentifier == 0) {
         sdcard.state = SDCARD_STATE_NOT_PRESENT;
         return;
     }
-    if (config->cardDetectTag) {
-        sdcard.cardDetectPin = IOGetByTag(config->cardDetectTag);
-    } else {
-        sdcard.cardDetectPin = IO_NONE;
-    }
-    if (config->cardDetectInverted) {
-    	sdcard.detectionInverted = 1;
-    }
+#endif
+#endif
     if (sdioConfig()->useCache) {
         sdcard.useCache = 1;
     } else {
         sdcard.useCache = 0;
     }
-    SD_Initialize_LL(dmaGetRefByIdentifier(sdcard.dmaIdentifier));
-    if (SD_IsDetected()) {
+#ifdef USE_DMA_SPEC
+#if defined(STM32H7) // H7 uses IDMA
+    SD_Initialize_LL(0);
+#else
+    SD_Initialize_LL(dmaChannelSpec->ref);
+#endif
+#else
+    SD_Initialize_LL(SDCARD_SDIO_DMA_OPT);
+#endif
+
+    if (sdcard_isInserted()) {
         if (SD_Init() != 0) {
             sdcard.state = SDCARD_STATE_NOT_PRESENT;
             sdcard.failureCount++;
@@ -631,6 +650,7 @@ static void sdcardSdio_setProfilerCallback(sdcard_profilerCallback_c callback)
 #endif
 
 sdcardVTable_t sdcardSdioVTable = {
+    NULL,
     sdcardSdio_init,
     sdcardSdio_readBlock,
     sdcardSdio_beginWriteBlocks,

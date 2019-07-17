@@ -45,7 +45,6 @@
 
 #define USE_ACC
 #define USE_ACC_SPI_MPU6000
-#define ACC_1_ALIGN             CW90_DEG
 
 #define USE_GYRO
 #define USE_GYRO_SPI_MPU6000
@@ -64,8 +63,7 @@
 #define USE_SDCARD_SPI
 #define SDCARD_SPI_INSTANCE     SPI2
 #define SDCARD_SPI_CS_PIN       PE15
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream4
-#define SDCARD_DMA_CHANNEL                  0
+#define SPI2_TX_DMA_OPT                     0     // DMA 1 Stream 4 Channel 0
 
 #define USE_VCP
 #define USE_USB_DETECT
@@ -142,8 +140,6 @@
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
-
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

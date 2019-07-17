@@ -20,6 +20,10 @@
 
 // pg/max7456
 
+#ifndef DEBUG_MODE
+#define DEBUG_MODE DEBUG_NONE
+#endif
+
 #ifdef USE_MAX7456
 #ifndef MAX7456_CLOCK_CONFIG_DEFAULT
 #define MAX7456_CLOCK_CONFIG_DEFAULT    MAX7456_CLOCK_CONFIG_OC
@@ -39,6 +43,18 @@
 
 #ifndef MAX7456_SPI_INSTANCE
 #define MAX7456_SPI_INSTANCE            NULL
+#endif
+#endif
+
+// pg/flash
+
+#ifdef USE_FLASH_M25P16
+#ifndef FLASH_CS_PIN
+#define FLASH_CS_PIN                    NONE
+#endif
+
+#ifndef FLASH_SPI_INSTANCE
+#define FLASH_SPI_INSTANCE              NULL
 #endif
 #endif
 
@@ -224,6 +240,25 @@
 #define SPI3_MISO_PIN   PB4
 #define SPI3_MOSI_PIN   PB5
 #endif
+
+#ifndef SPI4_SCK_PIN
+#define SPI4_SCK_PIN    NONE
+#define SPI4_MISO_PIN   NONE
+#define SPI4_MOSI_PIN   NONE
+#endif
+
+#ifndef SPI5_SCK_PIN
+#define SPI5_SCK_PIN    NONE
+#define SPI5_MISO_PIN   NONE
+#define SPI5_MOSI_PIN   NONE
+#endif
+
+#ifndef SPI6_SCK_PIN
+#define SPI6_SCK_PIN    NONE
+#define SPI6_MISO_PIN   NONE
+#define SPI6_MOSI_PIN   NONE
+#endif
+
 #endif
 
 // Extracted from rx/rx.c and rx/rx.h
@@ -249,14 +284,43 @@
 #define BINDPLUG_PIN NONE
 #endif
 
-// F4 and F7 single gyro boards
-#if defined(USE_MULTI_GYRO) && !defined(GYRO_2_SPI_INSTANCE)
-#define GYRO_2_SPI_INSTANCE     GYRO_1_SPI_INSTANCE
-#define GYRO_2_CS_PIN           NONE
-#define GYRO_2_ALIGN            ALIGN_DEFAULT
-#define GYRO_2_EXTI_PIN         NONE
-#define ACC_2_ALIGN             ALIGN_DEFAULT
+#ifdef USE_RX_SPI
+#if !defined(RX_SPI_INSTANCE)
+#define RX_SPI_INSTANCE NULL
 #endif
+
+#if !defined(RX_NSS_PIN)
+#define RX_NSS_PIN NONE
+#endif
+
+#ifndef RX_SPI_LED_PIN
+#define RX_SPI_LED_PIN NONE
+#endif
+
+#if !defined(RX_SPI_EXTI_PIN)
+#define RX_SPI_EXTI_PIN NONE
+#endif
+
+#if !defined(RX_SPI_BIND_PIN)
+#define RX_SPI_BIND_PIN NONE
+#endif
+
+#if defined(USE_RX_CC2500)
+#if !defined(RX_CC2500_SPI_TX_EN_PIN)
+#define RX_CC2500_SPI_TX_EN_PIN NONE
+#endif
+
+#if !defined(RX_CC2500_SPI_LNA_EN_PIN)
+#define RX_CC2500_SPI_LNA_EN_PIN NONE
+#endif
+
+#if !defined(RX_CC2500_SPI_ANT_SEL_PIN)
+#define RX_CC2500_SPI_ANT_SEL_PIN NONE
+#endif
+#endif
+#endif
+
+// gyro hardware
 
 #if !defined(GYRO_1_SPI_INSTANCE)
 #define GYRO_1_SPI_INSTANCE     NULL
@@ -270,12 +334,11 @@
 #define GYRO_1_EXTI_PIN         NONE
 #endif
 
-#if !defined(GYRO_1_ALIGN)
-#define GYRO_1_ALIGN            ALIGN_DEFAULT
-#endif
-
-#if !defined(ACC_1_ALIGN)
-#define ACC_1_ALIGN            ALIGN_DEFAULT
+// F4 and F7 single gyro boards
+#if defined(USE_MULTI_GYRO) && !defined(GYRO_2_SPI_INSTANCE)
+#define GYRO_2_SPI_INSTANCE     NULL
+#define GYRO_2_CS_PIN           NONE
+#define GYRO_2_EXTI_PIN         NONE
 #endif
 
 #if defined(MPU_ADDRESS)
@@ -286,8 +349,28 @@
 
 #ifdef USE_MULTI_GYRO
 #define MAX_GYRODEV_COUNT 2
+#define MAX_ACCDEV_COUNT 2
 #else
 #define MAX_GYRODEV_COUNT 1
+#define MAX_ACCDEV_COUNT 1
+#endif
+
+// gyro alignments
+
+#if !defined(GYRO_1_ALIGN)
+#define GYRO_1_ALIGN            CW0_DEG
+#endif
+
+#if !defined(GYRO_2_ALIGN)
+#define GYRO_2_ALIGN            CW0_DEG
+#endif
+
+#if !defined(GYRO_1_CUSTOM_ALIGN)
+#define GYRO_1_CUSTOM_ALIGN            CUSTOM_ALIGN_CW0_DEG
+#endif
+
+#if !defined(GYRO_2_CUSTOM_ALIGN)
+#define GYRO_2_CUSTOM_ALIGN            CUSTOM_ALIGN_CW0_DEG
 #endif
 
 #ifdef USE_VCP
@@ -312,9 +395,6 @@
 #ifndef SDCARD_DETECT_PIN
 #define SDCARD_DETECT_PIN NONE
 #endif
-#ifndef SDCARD_SPI_CS_PIN
-#define SDCARD_SPI_CS_PIN NONE
-#endif
 #ifdef SDCARD_DETECT_INVERTED
 #define SDCARD_DETECT_IS_INVERTED 1
 #else
@@ -324,8 +404,16 @@
 #ifndef SDCARD_SPI_INSTANCE
 #define SDCARD_SPI_INSTANCE NULL
 #endif
+#ifndef SDCARD_SPI_CS_PIN
+#define SDCARD_SPI_CS_PIN NONE
 #endif
+#endif // USE_SDCARD_SPI
+#ifdef USE_SDCARD_SDIO
+#ifndef SDCARD_SDIO_DMA_OPT
+#define SDCARD_SDIO_DMA_OPT (-1)
 #endif
+#endif // USE_SDCARD_SDIO
+#endif // USE_SDCARD
 
 #if defined(USE_UART1) || defined(USE_UART2) || defined(USE_UART3) || defined(USE_UART4) || defined(USE_UART5) || defined(USE_UART6) || defined(USE_UART7) || defined(USE_UART8)
 #define USE_UART
@@ -348,4 +436,194 @@
 #ifndef RANGEFINDER_HCSR04_ECHO_PIN
 #define RANGEFINDER_HCSR04_ECHO_PIN        NONE
 #endif
+#endif
+
+// Mag
+#if defined(USE_MAG)
+#ifndef MAG_SPI_INSTANCE
+#define MAG_SPI_INSTANCE        NULL
+#endif
+#ifndef MAG_CS_PIN
+#define MAG_CS_PIN              NONE
+#endif
+#ifndef MAG_I2C_INSTANCE
+#define MAG_I2C_INSTANCE        I2C_DEVICE
+#endif
+#endif
+
+#ifndef MAG_INT_EXTI
+#define MAG_INT_EXTI            NONE
+#endif
+
+// Baro
+#if defined(USE_BARO)
+#ifndef BARO_SPI_INSTANCE
+#define BARO_SPI_INSTANCE       NULL
+#endif
+#ifndef BARO_CS_PIN
+#define BARO_CS_PIN             NONE
+#endif
+#ifndef BARO_I2C_INSTANCE
+#define BARO_I2C_INSTANCE       I2C_DEVICE
+#endif
+#ifndef BARO_XCLR_PIN
+#define BARO_XCLR_PIN           NONE
+#endif
+#endif
+
+#ifdef USE_ADC
+#if !defined(USE_UNIFIED_TARGET) && !defined(ADC_INSTANCE)
+#define ADC_INSTANCE ADC1
+#ifndef ADC1_DMA_OPT
+#define ADC1_DMA_OPT 1
+#endif
+#endif
+
+#if !defined(ADC1_DMA_OPT)
+#define ADC1_DMA_OPT (-1)
+#endif
+#if !defined(ADC2_DMA_OPT)
+#define ADC2_DMA_OPT (-1)
+#endif
+#if !defined(ADC3_DMA_OPT)
+#define ADC3_DMA_OPT (-1)
+#endif
+
+#endif // USE_ADC
+
+#ifdef USE_SPI
+#ifdef USE_SPI_DEVICE_1
+#ifndef SPI1_TX_DMA_OPT
+#define SPI1_TX_DMA_OPT (-1)
+#endif
+#ifndef SPI1_RX_DMA_OPT
+#define SPI1_RX_DMA_OPT (-1)
+#endif
+#endif
+#ifdef USE_SPI_DEVICE_2
+#ifndef SPI2_TX_DMA_OPT
+#define SPI2_TX_DMA_OPT (-1)
+#endif
+#ifndef SPI2_RX_DMA_OPT
+#define SPI2_RX_DMA_OPT (-1)
+#endif
+#endif
+#ifdef USE_SPI_DEVICE_3
+#ifndef SPI3_TX_DMA_OPT
+#define SPI3_TX_DMA_OPT (-1)
+#endif
+#ifndef SPI3_RX_DMA_OPT
+#define SPI3_RX_DMA_OPT (-1)
+#endif
+#endif
+#ifdef USE_SPI_DEVICE_4
+#ifndef SPI4_TX_DMA_OPT
+#define SPI4_TX_DMA_OPT (-1)
+#endif
+#ifndef SPI4_RX_DMA_OPT
+#define SPI4_RX_DMA_OPT (-1)
+#endif
+#endif
+#endif
+
+#ifdef USE_UART1
+#ifndef UART1_TX_DMA_OPT
+#define UART1_TX_DMA_OPT (-1)
+#endif
+#ifndef UART1_RX_DMA_OPT
+#define UART1_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART2
+#ifndef UART2_TX_DMA_OPT
+#define UART2_TX_DMA_OPT (-1)
+#endif
+#ifndef UART2_RX_DMA_OPT
+#define UART2_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART3
+#ifndef UART3_TX_DMA_OPT
+#define UART3_TX_DMA_OPT (-1)
+#endif
+#ifndef UART3_RX_DMA_OPT
+#define UART3_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART4
+#ifndef UART4_TX_DMA_OPT
+#define UART4_TX_DMA_OPT (-1)
+#endif
+#ifndef UART4_RX_DMA_OPT
+#define UART4_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART5
+#ifndef UART5_TX_DMA_OPT
+#define UART5_TX_DMA_OPT (-1)
+#endif
+#ifndef UART5_RX_DMA_OPT
+#define UART5_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART6
+#ifndef UART6_TX_DMA_OPT
+#define UART6_TX_DMA_OPT (-1)
+#endif
+#ifndef UART6_RX_DMA_OPT
+#define UART6_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART7
+#ifndef UART7_TX_DMA_OPT
+#define UART7_TX_DMA_OPT (-1)
+#endif
+#ifndef UART7_RX_DMA_OPT
+#define UART7_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifdef USE_UART8
+#ifndef UART8_TX_DMA_OPT
+#define UART8_TX_DMA_OPT (-1)
+#endif
+#ifndef UART8_RX_DMA_OPT
+#define UART8_RX_DMA_OPT (-1)
+#endif
+#endif
+
+#ifndef RTC6705_CS_PIN
+#define RTC6705_CS_PIN NONE
+#endif
+
+#ifndef RTC6705_POWER_PIN
+#define RTC6705_POWER_PIN NONE
+#endif
+
+#ifndef RTC6705_SPICLK_PIN
+#define RTC6705_SPICLK_PIN NONE
+#endif
+
+#ifndef RTC6705_SPI_MOSI_PIN
+#define RTC6705_SPI_MOSI_PIN NONE
+#endif
+
+#ifndef RTC6705_SPI_INSTANCE
+#define RTC6705_SPI_INSTANCE NULL
+#endif
+
+#if defined(USE_QUAD_MIXER_ONLY)
+#define MAX_SUPPORTED_MOTORS 4
+#define MAX_SUPPORTED_SERVOS 1
+#else
+#ifndef MAX_SUPPORTED_MOTORS
+#define MAX_SUPPORTED_MOTORS 8
+#endif
+#define MAX_SUPPORTED_SERVOS 8
 #endif

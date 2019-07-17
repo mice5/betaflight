@@ -29,7 +29,8 @@
 #define BEEPER_PIN              PB3
 #define BEEPER_INVERTED
 
-#define ENABLE_DSHOT_DMAR       true
+// Tim_UP 1 (motors 1 & 2) conflicts with Tim 4 Ch 3 (LED_STRIP)
+#define ENABLE_DSHOT_DMAR       false
 
 // ICM20689 interrupt
 #define USE_EXTI
@@ -44,7 +45,6 @@
 
 #define USE_ACC
 #define USE_ACC_SPI_ICM20689
-#define ACC_1_ALIGN             CW270_DEG
 
 #define USE_GYRO
 #define USE_GYRO_SPI_ICM20689
@@ -57,9 +57,8 @@
 #define MAX7456_SPI_INSTANCE    SPI3
 #define MAX7456_SPI_CS_PIN      SPI3_NSS_PIN
 
-#define MAX7456_DMA_CHANNEL_TX              DMA1_Stream5
-#define MAX7456_DMA_CHANNEL_RX              DMA1_Stream0
-#define MAX7456_DMA_IRQ_HANDLER_ID          DMA1_ST0_HANDLER
+#define SPI3_TX_DMA_OPT         0  // DMA 1 Stream 5 Channel 0
+#define SPI3_RX_DMA_OPT         0  // DMA 1 Stream 0 Channel 0
 
 #define USE_SDCARD
 #define USE_SDCARD_SPI
@@ -67,8 +66,7 @@
 #define SDCARD_DETECT_INVERTED
 #define SDCARD_SPI_INSTANCE     SPI2
 #define SDCARD_SPI_CS_PIN       SPI2_NSS_PIN
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream4
-#define SDCARD_DMA_CHANNEL                  0
+#define SPI2_TX_DMA_OPT         0  // DMA 1 Stream 4 Channel 0
 
 #define USE_VCP
 #define USE_USB_DETECT
@@ -128,7 +126,9 @@
 #define I2C1_SDA                PB7
 
 #define USE_ADC
-#define ADC1_DMA_STREAM         DMA2_Stream0
+#define ADC_INSTANCE            ADC1  // Default added
+#define ADC1_DMA_OPT            0  // DMA 2 Stream 0 Channel 0 
+
 
 #define VBAT_ADC_PIN            PC0
 
@@ -148,12 +148,10 @@
 
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
-
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD (BIT(2))
 
 #define USABLE_TIMER_CHANNEL_COUNT 10
-#define USED_TIMERS  ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(8) | TIM_N(9) )
+#define USED_TIMERS  ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) | TIM_N(5) | TIM_N(8) | TIM_N(9) )

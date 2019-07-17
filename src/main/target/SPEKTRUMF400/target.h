@@ -59,7 +59,6 @@
 #define USE_ACC
 #define USE_ACC_SPI_MPU6500
 #define USE_ACC_SPI_MPU9250
-#define ACC_1_ALIGN       CW270_DEG
 
 #define GYRO_1_CS_PIN           PB12
 #define GYRO_1_SPI_INSTANCE     SPI2
@@ -100,8 +99,6 @@
 #define USE_ESCSERIAL
 #define ESCSERIAL_TIMER_TX_PIN  PB8
 
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
-
 #define USE_I2C
 
 #define USE_I2C_DEVICE_1
@@ -116,6 +113,7 @@
 
 #define USE_ADC
 #define ADC_INSTANCE            ADC1
+#define ADC1_DMA_OPT            1  // DMA 2 Stream 4 Channel 0 (compat default)
 #define VBAT_ADC_PIN            PC0
 #define CURRENT_METER_ADC_PIN   PC3
 

@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "platform.h"
 
@@ -57,17 +58,12 @@
 magDev_t magDev;
 mag_t mag;                   // mag access functions
 
-#ifdef MAG_INT_EXTI
-#define COMPASS_INTERRUPT_TAG   IO_TAG(MAG_INT_EXTI)
-#else
-#define COMPASS_INTERRUPT_TAG   IO_TAG_NONE
-#endif
-
 PG_REGISTER_WITH_RESET_FN(compassConfig_t, compassConfig, PG_COMPASS_CONFIG, 1);
 
 void pgResetFn_compassConfig(compassConfig_t *compassConfig)
 {
-    compassConfig->mag_align = ALIGN_DEFAULT;
+    compassConfig->mag_alignment = ALIGN_DEFAULT;
+    memset(&compassConfig->mag_customAlignment, 0x00, sizeof(compassConfig->mag_customAlignment));
     compassConfig->mag_declination = 0;
     compassConfig->mag_hardware = MAG_DEFAULT;
 
@@ -79,13 +75,8 @@ void pgResetFn_compassConfig(compassConfig_t *compassConfig)
 
 #if defined(USE_SPI) && (defined(USE_MAG_SPI_HMC5883) || defined(USE_MAG_SPI_AK8963))
     compassConfig->mag_bustype = BUSTYPE_SPI;
-#ifdef USE_MAG_SPI_HMC5883
-    compassConfig->mag_spi_device = SPI_DEV_TO_CFG(spiDeviceByInstance(HMC5883_SPI_INSTANCE));
-    compassConfig->mag_spi_csn = IO_TAG(HMC5883_CS_PIN);
-#else
-    compassConfig->mag_spi_device = SPI_DEV_TO_CFG(spiDeviceByInstance(AK8963_SPI_INSTANCE));
-    compassConfig->mag_spi_csn = IO_TAG(AK8963_CS_PIN);
-#endif
+    compassConfig->mag_spi_device = SPI_DEV_TO_CFG(spiDeviceByInstance(MAG_SPI_INSTANCE));
+    compassConfig->mag_spi_csn = IO_TAG(MAG_CS_PIN);
     compassConfig->mag_i2c_device = I2C_DEV_TO_CFG(I2CINVALID);
     compassConfig->mag_i2c_address = 0;
 #elif defined(USE_MAG_HMC5883) || defined(USE_MAG_QMC5883) || defined(USE_MAG_AK8975) || (defined(USE_MAG_AK8963) && !(defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250)))
@@ -108,7 +99,7 @@ void pgResetFn_compassConfig(compassConfig_t *compassConfig)
     compassConfig->mag_spi_device = SPI_DEV_TO_CFG(SPIINVALID);
     compassConfig->mag_spi_csn = IO_TAG_NONE;
 #endif
-    compassConfig->interruptTag = COMPASS_INTERRUPT_TAG;
+    compassConfig->interruptTag = IO_TAG(MAG_INT_EXTI);
 }
 
 #if defined(USE_MAG)
@@ -116,9 +107,20 @@ void pgResetFn_compassConfig(compassConfig_t *compassConfig)
 static int16_t magADCRaw[XYZ_AXIS_COUNT];
 static uint8_t magInit = 0;
 
-#if !defined(SIMULATOR_BUILD)
-bool compassDetect(magDev_t *dev)
+void compassPreInit(void)
 {
+#ifdef USE_SPI
+    if (compassConfig()->mag_bustype == BUSTYPE_SPI) {
+        spiPreinitRegister(compassConfig()->mag_spi_csn, IOCFG_IPU, 1);
+    }
+#endif
+}
+
+#if !defined(SIMULATOR_BUILD)
+bool compassDetect(magDev_t *dev, uint8_t *alignment)
+{
+    *alignment = ALIGN_DEFAULT;  // may be overridden if target specifies MAG_*_ALIGN
+
     magSensor_e magHardware = MAG_NONE;
 
     busDevice_t *busdev = &dev->busdev;
@@ -169,8 +171,6 @@ bool compassDetect(magDev_t *dev)
         return false;
     }
 
-    dev->magAlign = ALIGN_DEFAULT;
-
     switch (compassConfig()->mag_hardware) {
     case MAG_DEFAULT:
         FALLTHROUGH;
@@ -178,12 +178,12 @@ bool compassDetect(magDev_t *dev)
     case MAG_HMC5883:
 #if defined(USE_MAG_HMC5883) || defined(USE_MAG_SPI_HMC5883)
         if (busdev->bustype == BUSTYPE_I2C) {
-                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+            busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
         }
 
         if (hmc5883lDetect(dev)) {
 #ifdef MAG_HMC5883_ALIGN
-            dev->magAlign = MAG_HMC5883_ALIGN;
+            *alignment = MAG_HMC5883_ALIGN;
 #endif
             magHardware = MAG_HMC5883;
             break;
@@ -194,30 +194,14 @@ bool compassDetect(magDev_t *dev)
     case MAG_LIS3MDL:
 #if defined(USE_MAG_LIS3MDL)
         if (busdev->bustype == BUSTYPE_I2C) {
-                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+            busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
         }
 
         if (lis3mdlDetect(dev)) {
 #ifdef MAG_LIS3MDL_ALIGN
-            dev->magAlign = MAG_LIS3MDL_ALIGN;
+            *alignment = MAG_LIS3MDL_ALIGN;
 #endif
             magHardware = MAG_LIS3MDL;
-            break;
-        }
-#endif
-        FALLTHROUGH;
-
-    case MAG_QMC5883:
-#ifdef USE_MAG_QMC5883
-        if (busdev->bustype == BUSTYPE_I2C) {
-                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
-        }
-
-        if (qmc5883lDetect(dev)) {
-#ifdef MAG_QMC5883L_ALIGN
-            dev->magAlign = MAG_QMC5883L_ALIGN;
-#endif
-            magHardware = MAG_QMC5883;
             break;
         }
 #endif
@@ -226,12 +210,12 @@ bool compassDetect(magDev_t *dev)
     case MAG_AK8975:
 #ifdef USE_MAG_AK8975
         if (busdev->bustype == BUSTYPE_I2C) {
-                busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+            busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
         }
 
         if (ak8975Detect(dev)) {
 #ifdef MAG_AK8975_ALIGN
-            dev->magAlign = MAG_AK8975_ALIGN;
+            *alignment = MAG_AK8975_ALIGN;
 #endif
             magHardware = MAG_AK8975;
             break;
@@ -252,9 +236,25 @@ bool compassDetect(magDev_t *dev)
 
         if (ak8963Detect(dev)) {
 #ifdef MAG_AK8963_ALIGN
-            dev->magAlign = MAG_AK8963_ALIGN;
+            *alignment = MAG_AK8963_ALIGN;
 #endif
             magHardware = MAG_AK8963;
+            break;
+        }
+#endif
+        FALLTHROUGH;
+
+    case MAG_QMC5883:
+#ifdef USE_MAG_QMC5883
+        if (busdev->bustype == BUSTYPE_I2C) {
+            busdev->busdev_u.i2c.address = compassConfig()->mag_i2c_address;
+        }
+
+        if (qmc5883lDetect(dev)) {
+#ifdef MAG_QMC5883L_ALIGN
+            *alignment = MAG_QMC5883L_ALIGN;
+#endif
+            magHardware = MAG_QMC5883;
             break;
         }
 #endif
@@ -274,9 +274,10 @@ bool compassDetect(magDev_t *dev)
     return true;
 }
 #else
-bool compassDetect(magDev_t *dev)
+bool compassDetect(magDev_t *dev, sensor_align_e *alignment)
 {
     UNUSED(dev);
+    UNUSED(alignment);
 
     return false;
 }
@@ -288,7 +289,9 @@ bool compassInit(void)
     // calculate magnetic declination
     mag.magneticDeclination = 0.0f; // TODO investigate if this is actually needed if there is no mag sensor or if the value stored in the config should be used.
 
-    if (!compassDetect(&magDev)) {
+    sensor_align_e alignment;
+
+    if (!compassDetect(&magDev, &alignment)) {
         return false;
     }
 
@@ -299,9 +302,15 @@ bool compassInit(void)
     magDev.init(&magDev);
     LED1_OFF;
     magInit = 1;
-    if (compassConfig()->mag_align != ALIGN_DEFAULT) {
-        magDev.magAlign = compassConfig()->mag_align;
+
+    magDev.magAlignment = alignment;
+
+    if (compassConfig()->mag_alignment != ALIGN_DEFAULT) {
+        magDev.magAlignment = compassConfig()->mag_alignment;
     }
+    
+    buildRotationMatrixFromAlignment(&compassConfig()->mag_customAlignment, &magDev.rotationMatrix);
+
     return true;
 }
 
@@ -320,7 +329,11 @@ void compassUpdate(timeUs_t currentTimeUs)
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         mag.magADC[axis] = magADCRaw[axis];
     }
-    alignSensors(mag.magADC, magDev.magAlign);
+    if (magDev.magAlignment == ALIGN_CUSTOM) {
+        alignSensorViaMatrix(mag.magADC, &magDev.rotationMatrix);
+    } else {
+        alignSensorViaRotation(mag.magADC, magDev.magAlignment);
+    }
 
     flightDynamicsTrims_t *magZero = &compassConfigMutable()->magZero;
     if (STATE(CALIBRATE_MAG)) {

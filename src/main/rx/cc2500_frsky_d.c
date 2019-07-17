@@ -30,9 +30,6 @@
 #include "build/build_config.h"
 #include "build/debug.h"
 
-#include "pg/rx.h"
-#include "pg/rx_spi.h"
-
 #include "common/maths.h"
 #include "common/utils.h"
 
@@ -45,6 +42,10 @@
 #include "drivers/time.h"
 
 #include "fc/config.h"
+
+#include "pg/rx.h"
+#include "pg/rx_spi.h"
+#include "pg/rx_spi_cc2500.h"
 
 #include "rx/rx_spi_common.h"
 #include "rx/cc2500_common.h"
@@ -65,6 +66,8 @@ static uint8_t telemetryId;
 static bool telemetryEnabled = false;
 
 #define MAX_SERIAL_BYTES 64
+
+#define A1_CONST_D 100
 
 static uint8_t telemetryBytesGenerated;
 static uint8_t serialBuffer[MAX_SERIAL_BYTES]; // buffer for telemetry serial data
@@ -113,16 +116,22 @@ static void frSkyDTelemetryWriteByte(const char data)
 static void buildTelemetryFrame(uint8_t *packet)
 {
     uint8_t a1Value;
-    if (rxFrSkySpiConfig()->useExternalAdc) {
+    switch (rxCc2500SpiConfig()->a1Source) {
+    case FRSKY_SPI_A1_SOURCE_VBAT:
+        a1Value = (getBatteryVoltage() / 5) & 0xff;
+        break;
+    case FRSKY_SPI_A1_SOURCE_EXTADC:
         a1Value = (adcGetChannel(ADC_EXTERNAL1) & 0xff0) >> 4;
-    } else {
-        a1Value = (2 * getBatteryVoltage()) & 0xff;
+        break;
+    case FRSKY_SPI_A1_SOURCE_CONST:
+        a1Value = A1_CONST_D & 0xff;
+        break;
     }
     const uint8_t a2Value = (adcGetChannel(ADC_RSSI)) >> 4;
     telemetryId = packet[4];
     frame[0] = 0x11; // length
-    frame[1] = rxFrSkySpiConfig()->bindTxId[0];
-    frame[2] = rxFrSkySpiConfig()->bindTxId[1];
+    frame[1] = rxCc2500SpiConfig()->bindTxId[0];
+    frame[2] = rxCc2500SpiConfig()->bindTxId[1];
     frame[3] = a1Value;
     frame[4] = a2Value;
     frame[5] = (uint8_t)cc2500getRssiDbm();
@@ -215,8 +224,8 @@ rx_spi_received_e frSkyDHandlePacket(uint8_t * const packet, uint8_t * const pro
                     missingPackets = 0;
                     timeoutUs = 1;
                     if (packet[0] == 0x11) {
-                        if ((packet[1] == rxFrSkySpiConfig()->bindTxId[0]) &&
-                            (packet[2] == rxFrSkySpiConfig()->bindTxId[1])) {
+                        if ((packet[1] == rxCc2500SpiConfig()->bindTxId[0]) &&
+                            (packet[2] == rxCc2500SpiConfig()->bindTxId[1])) {
                             rxSpiLedOn();
                             nextChannel(1);
                             cc2500setRssiDbm(packet[18]);

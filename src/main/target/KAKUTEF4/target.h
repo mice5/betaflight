@@ -64,7 +64,6 @@
 
 #define GYRO_1_CS_PIN           PC4
 #define GYRO_1_SPI_INSTANCE     SPI1
-#define ACC_1_ALIGN             CW270_DEG
 #define GYRO_1_ALIGN            CW270_DEG
 
 #define USE_ACC
@@ -103,8 +102,6 @@
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI3
 #define MAX7456_SPI_CS_PIN      PB14
-#define MAX7456_SPI_CLK         (SPI_CLOCK_STANDARD)
-#define MAX7456_RESTORE_CLK     (SPI_CLOCK_FAST)
 #define FLASH_CS_PIN            PB3
 #define FLASH_SPI_INSTANCE      SPI3
 
@@ -172,7 +169,9 @@
 
 #define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #define USE_ADC
-#define ADC1_DMA_STREAM 			DMA2_Stream0
+#define ADC_INSTANCE    ADC1  // Default added
+#define ADC1_DMA_OPT       0  // DMA 2 Stream 0 Channel 0 
+
 #define VBAT_ADC_PIN                PC3
 #define CURRENT_METER_ADC_PIN       PC2
 #define RSSI_ADC_PIN                PC1
@@ -181,8 +180,6 @@
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART3
-
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff

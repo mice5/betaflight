@@ -39,7 +39,12 @@
 //#define DEBUG_ADC_CHANNELS
 
 adcOperatingConfig_t adcOperatingConfig[ADC_CHANNEL_COUNT];
+
+#if defined(STM32F7)
+volatile FAST_RAM_ZERO_INIT uint16_t adcValues[ADC_CHANNEL_COUNT];
+#else
 volatile uint16_t adcValues[ADC_CHANNEL_COUNT];
+#endif
 
 #ifdef USE_ADC_INTERNAL
 uint16_t adcTSCAL1;
@@ -84,6 +89,8 @@ ADCDevice adcDeviceByInstance(ADC_TypeDef *instance)
 
 uint16_t adcGetChannel(uint8_t channel)
 {
+    adcGetChannelValues();
+
 #ifdef DEBUG_ADC_CHANNELS
     if (adcOperatingConfig[0].enabled) {
         debug[0] = adcValues[adcOperatingConfig[0].dmaIndex];

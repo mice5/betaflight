@@ -76,7 +76,7 @@
 // *** change to adapt Revision
 #define SERIAL_4WAY_VER_MAIN 20
 #define SERIAL_4WAY_VER_SUB_1 (uint8_t) 0
-#define SERIAL_4WAY_VER_SUB_2 (uint8_t) 02
+#define SERIAL_4WAY_VER_SUB_2 (uint8_t) 03
 
 #define SERIAL_4WAY_PROTOCOL_VER 107
 // *** end
@@ -137,7 +137,9 @@ inline void setEscOutput(uint8_t selEsc)
 uint8_t esc4wayInit(void)
 {
     // StopPwmAllMotors();
-    pwmDisableMotors();
+    // XXX Review effect of motor refactor
+    //pwmDisableMotors();
+    motorDisable();
     escCount = 0;
     memset(&escHardware, 0, sizeof(escHardware));
     pwmOutputPort_t *pwmMotors = pwmGetMotors();
@@ -161,7 +163,7 @@ void esc4wayRelease(void)
         IOConfigGPIO(escHardware[escCount].io, IOCFG_AF_PP);
         setEscLo(escCount);
     }
-    pwmEnableMotors();
+    motorEnable();
 }
 
 
@@ -336,14 +338,15 @@ uint16_t _crc_xmodem_update (uint16_t crc, uint8_t data) {
         (pDeviceInfo->words[0] == 0xE8B2))
 
 #define ARM_DEVICE_MATCH ((pDeviceInfo->words[0] == 0x1F06) || \
-        (pDeviceInfo->words[0] == 0x3306) || (pDeviceInfo->words[0] == 0x3406) || (pDeviceInfo->words[0] == 0x3506))
+        (pDeviceInfo->words[0] == 0x3306) || (pDeviceInfo->words[0] == 0x3406) || (pDeviceInfo->words[0] == 0x3506) || \
+        (pDeviceInfo->words[0] == 0x2B06) || (pDeviceInfo->words[0] == 0x4706))
 
 static uint8_t CurrentInterfaceMode;
 
 static uint8_t Connect(uint8_32_u *pDeviceInfo)
 {
     for (uint8_t I = 0; I < 3; ++I) {
-        #if (defined(USE_SERIAL_4WAY_BLHELI_BOOTLOADER) && defined(USE_SERIAL_4WAY_SK_BOOTLOADER))
+#if (defined(USE_SERIAL_4WAY_BLHELI_BOOTLOADER) && defined(USE_SERIAL_4WAY_SK_BOOTLOADER))
         if ((CurrentInterfaceMode != imARM_BLB) && Stk_ConnectEx(pDeviceInfo) && ATMEL_DEVICE_MATCH) {
             CurrentInterfaceMode = imSK;
             return 1;
@@ -361,7 +364,7 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
                 }
             }
         }
-        #elif defined(USE_SERIAL_4WAY_BLHELI_BOOTLOADER)
+#elif defined(USE_SERIAL_4WAY_BLHELI_BOOTLOADER)
         if (BL_ConnectEx(pDeviceInfo)) {
             if SILABS_DEVICE_MATCH {
                 CurrentInterfaceMode = imSIL_BLB;
@@ -374,12 +377,12 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
                 return 1;
             }
         }
-        #elif defined(USE_SERIAL_4WAY_SK_BOOTLOADER)
+#elif defined(USE_SERIAL_4WAY_SK_BOOTLOADER)
         if (Stk_ConnectEx(pDeviceInfo)) {
             CurrentInterfaceMode = imSK;
             if ATMEL_DEVICE_MATCH return 1;
         }
-        #endif
+#endif
     }
     return 0;
 }

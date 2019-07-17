@@ -47,7 +47,6 @@
 
 #define USE_ACC
 #define USE_ACC_SPI_MPU6500
-#define ACC_1_ALIGN             CW0_DEG
 
 #define USE_GYRO
 #define USE_GYRO_SPI_MPU6500
@@ -59,8 +58,7 @@
 #define SDCARD_DETECT_PIN                   PD2
 #define SDCARD_SPI_INSTANCE                 SPI3
 #define SDCARD_SPI_CS_PIN                   PA15
-//#define SDCARD_DMA_STREAM_TX_FULL           DMA1_Stream5
-//#define SDCARD_DMA_CHANNEL                  0
+//#define SPI3_TX_DMA_OPT                     0     // DMA 1 Stream 5 Channel 0
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1
@@ -120,8 +118,6 @@
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART6
-
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

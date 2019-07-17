@@ -52,7 +52,6 @@
 
 #define USE_ACC
 #define USE_ACC_SPI_MPU6000
-#define ACC_1_ALIGN             CW270_DEG
 
 #define USE_MAG
 #define USE_MAG_HMC5883
@@ -69,22 +68,19 @@
 #define SDCARD_DETECT_PIN                   PC13
 #define SDCARD_SPI_INSTANCE                 SPI3
 #define SDCARD_SPI_CS_PIN                   PA15
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream5
-#define SDCARD_DMA_CHANNEL                  0
+#define SPI3_TX_DMA_OPT                     0     // DMA 1 Stream 5 Channel 0
 
-#ifdef USE_MSP_DISPLAYPORT
 #undef USE_MSP_DISPLAYPORT
-#endif
+
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI1
 #define MAX7456_SPI_CS_PIN      PC4
-#define MAX7456_SPI_CLK         (SPI_CLOCK_STANDARD) // 10MHz
-#define MAX7456_RESTORE_CLK     (SPI_CLOCK_FAST)
 
 #define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #define DEFAULT_CURRENT_METER_SOURCE CURRENT_METER_ADC
 #define USE_ADC
 #define ADC_INSTANCE            ADC1
+#define ADC1_DMA_OPT            1  // DMA 2 Stream 4 Channel 0 (compat default)
 #define VBAT_ADC_PIN            PC3
 #define CURRENT_METER_ADC_PIN   PC2
 #define RSSI_ADC_PIN            PC0
@@ -144,8 +140,6 @@
 #define DEFAULT_RX_FEATURE      FEATURE_RX_PPM
 #define RX_CHANNELS_TAER
 #define DEFAULT_FEATURES        (FEATURE_OSD)
-
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

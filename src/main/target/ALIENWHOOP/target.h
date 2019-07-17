@@ -107,8 +107,6 @@
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI2
 #define MAX7456_SPI_CS_PIN      SPI2_NSS_PIN
-#define MAX7456_SPI_CLK         (SPI_CLOCK_STANDARD) // 10MHz
-#define MAX7456_RESTORE_CLK     (SPI_CLOCK_FAST)
 
 /* BLACKBOX dataflash available as of V2.1 -- did not exist on V1 and V2 */
 #define USE_FLASHFS
@@ -142,7 +140,6 @@
 // ACC
 #define USE_ACC
 #define USE_ACC_SPI_MPU6500
-#define ACC_1_ALIGN             CW0_DEG
 
 /* Optional Digital Pressure Sensor (barometer) - Bosch BMP280
  * TODO: not implemented on V1 or V2 pcb
@@ -151,8 +148,8 @@
 #define USE_BARO
 #define USE_BARO_BMP280
 #define USE_BARO_SPI_BMP280
-#define BMP280_SPI_INSTANCE     SPI3
-#define BMP280_CS_PIN           SPI3_NSS_PIN
+#define BARO_SPI_INSTANCE       SPI3
+#define BARO_CS_PIN             SPI3_NSS_PIN
 #endif
 
 /* Serial ports etc.

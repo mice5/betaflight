@@ -26,7 +26,21 @@
 #pragma GCC poison sprintf snprintf
 #endif
 
-#if defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F722xx) || defined(STM32F767xx) || defined(STM32F765xx)
+#if defined(STM32H743xx) || defined(STM32H750xx)
+#include "stm32h7xx.h"
+#include "stm32h7xx_hal.h"
+#include "system_stm32h7xx.h"
+
+// Chip Unique ID on H7
+#define U_ID_0 (*(uint32_t*)0x1FF1E800)
+#define U_ID_1 (*(uint32_t*)0x1FF1E804)
+#define U_ID_2 (*(uint32_t*)0x1FF1E808)
+
+#ifndef STM32H7
+#define STM32H7
+#endif
+
+#elif defined(STM32F722xx) || defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx) || defined(STM32F767xx)
 #include "stm32f7xx.h"
 #include "stm32f7xx_hal.h"
 #include "system_stm32f7xx.h"
@@ -124,7 +138,7 @@
 #elif defined(STM32F411xE)
 #define MCU_TYPE_ID   4
 #define MCU_TYPE_NAME "F411"
-#elif defined(STM32F446)
+#elif defined(STM32F446xx)
 #define MCU_TYPE_ID   5
 #define MCU_TYPE_NAME "F446"
 #elif defined(STM32F722xx)
@@ -142,6 +156,12 @@
 #elif defined(STM32F767xx)
 #define MCU_TYPE_ID   10
 #define MCU_TYPE_NAME "F767"
+#elif defined(STM32H750xx)
+#define MCU_TYPE_ID   11
+#define MCU_TYPE_NAME "H750"
+#elif defined(STM32H743xx)
+#define MCU_TYPE_ID   12
+#define MCU_TYPE_NAME "H743"
 #else
 #define MCU_TYPE_ID   255
 #define MCU_TYPE_NAME "Unknown MCU"
@@ -149,5 +169,6 @@
 
 #include "target/common_pre.h"
 #include "target.h"
+#include "target/common_deprecated_post.h"
 #include "target/common_post.h"
 #include "target/common_defaults_post.h"

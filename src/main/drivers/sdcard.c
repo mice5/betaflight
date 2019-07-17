@@ -28,10 +28,12 @@
 #include "drivers/nvic.h"
 #include "drivers/io.h"
 #include "dma.h"
+#include "dma_reqmap.h"
 
 #include "drivers/bus_spi.h"
 #include "drivers/time.h"
 
+#include "pg/bus_spi.h"
 #include "pg/sdcard.h"
 
 #include "sdcard.h"
@@ -65,16 +67,16 @@ sdcard_t sdcard;
 
 STATIC_ASSERT(sizeof(sdcardCSD_t) == 16, sdcard_csd_bitfields_didnt_pack_properly);
 
-void sdcardInsertionDetectDeinit(void)
+static void sdcardInsertionDetectInit(const sdcardConfig_t *config)
 {
-    if (sdcard.cardDetectPin) {
-        IOInit(sdcard.cardDetectPin, OWNER_FREE, 0);
-        IOConfigGPIO(sdcard.cardDetectPin, IOCFG_IN_FLOATING);
+    if (config->cardDetectTag) {
+        sdcard.cardDetectPin = IOGetByTag(config->cardDetectTag);
+        sdcard.detectionInverted = config->cardDetectInverted;
+    } else {
+        sdcard.cardDetectPin = IO_NONE;
+        sdcard.detectionInverted = false;
     }
-}
 
-void sdcardInsertionDetectInit(void)
-{
     if (sdcard.cardDetectPin) {
         IOInit(sdcard.cardDetectPin, OWNER_SDCARD_DETECT, 0);
         IOConfigGPIO(sdcard.cardDetectPin, IOCFG_IPU);
@@ -101,8 +103,19 @@ bool sdcard_isInserted(void)
  */
 sdcardVTable_t *sdcardVTable;
 
+void sdcard_preInit(const sdcardConfig_t *config)
+{
+#ifdef USE_SDCARD_SPI
+    sdcardSpiVTable.sdcard_preInit(config);
+#else
+    UNUSED(config);
+#endif
+}
+
 void sdcard_init(const sdcardConfig_t *config)
 {
+    sdcardInsertionDetectInit(config);
+
     switch (config->mode) {
 #ifdef USE_SDCARD_SPI
     case SDCARD_MODE_SPI:
@@ -119,7 +132,7 @@ void sdcard_init(const sdcardConfig_t *config)
     }
 
     if (sdcardVTable) {
-        sdcardVTable->sdcard_init(config);
+        sdcardVTable->sdcard_init(config, spiPinConfig(0));
     }
 }
 

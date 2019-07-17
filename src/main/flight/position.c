@@ -24,6 +24,8 @@
 #include <math.h>
 #include <limits.h>
 
+#include "platform.h"
+
 #include "build/debug.h"
 
 #include "common/maths.h"
@@ -38,6 +40,21 @@
 
 #include "sensors/sensors.h"
 #include "sensors/barometer.h"
+
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
+
+typedef enum {
+    DEFAULT = 0,
+    BARO_ONLY,
+    GPS_ONLY
+} altSource_e;
+
+PG_REGISTER_WITH_RESET_TEMPLATE(positionConfig_t, positionConfig, PG_POSITION, 1);
+
+PG_RESET_TEMPLATE(positionConfig_t, positionConfig,
+    .altSource = DEFAULT,
+);
 
 static int32_t estimatedAltitudeCm = 0;                // in cm
 
@@ -82,8 +99,11 @@ void calculateEstimatedAltitude(timeUs_t currentTimeUs)
     previousTimeUs = currentTimeUs;
 
     int32_t baroAlt = 0;
-
     int32_t gpsAlt = 0;
+
+#if defined(USE_GPS) && defined(USE_VARIO)
+    int16_t gpsVertSpeed = 0;
+#endif
     float gpsTrust = 0.3; //conservative default
     bool haveBaroAlt = false;
     bool haveGpsAlt = false;
@@ -99,16 +119,19 @@ void calculateEstimatedAltitude(timeUs_t currentTimeUs)
 #endif
 
 #ifdef USE_GPS
-if (sensors(SENSOR_GPS) && STATE(GPS_FIX)) {
-    gpsAlt = gpsSol.llh.altCm;
-    haveGpsAlt = true;
+    if (sensors(SENSOR_GPS) && STATE(GPS_FIX)) {
+        gpsAlt = gpsSol.llh.altCm;
+#ifdef USE_VARIO
+        gpsVertSpeed = GPS_verticalSpeedInCmS;
+#endif
+        haveGpsAlt = true;
 
-    if (gpsSol.hdop != 0) {
-        gpsTrust = 100.0 / gpsSol.hdop;
+        if (gpsSol.hdop != 0) {
+            gpsTrust = 100.0 / gpsSol.hdop;
+        }
+        // always use at least 10% of other sources besides gps if available
+        gpsTrust = MIN(gpsTrust, 0.9f);
     }
-    // always use at least 10% of other sources besides gps if available
-    gpsTrust = MIN(gpsTrust, 0.9f);
-}
 #endif
 
     if (ARMING_FLAG(ARMED) && !altitudeOffsetSet) {
@@ -121,23 +144,33 @@ if (sensors(SENSOR_GPS) && STATE(GPS_FIX)) {
     baroAlt -= baroAltOffset;
     gpsAlt -= gpsAltOffset;
     
-    if (haveGpsAlt && haveBaroAlt) {
+    
+    if (haveGpsAlt && haveBaroAlt && positionConfig()->altSource == DEFAULT) {
         estimatedAltitudeCm = gpsAlt * gpsTrust + baroAlt * (1 - gpsTrust);
 #ifdef USE_VARIO
+        // baro is a better source for vario, so ignore gpsVertSpeed
         estimatedVario = calculateEstimatedVario(baroAlt, dTime);
 #endif
-    } else if (haveGpsAlt) {
+    } else if (haveGpsAlt && (positionConfig()->altSource == GPS_ONLY || positionConfig()->altSource == DEFAULT )) {
         estimatedAltitudeCm = gpsAlt;
-    } else if (haveBaroAlt) {
+#if defined(USE_VARIO) && defined(USE_GPS)
+        estimatedVario = gpsVertSpeed;
+#endif
+    } else if (haveBaroAlt && (positionConfig()->altSource == BARO_ONLY || positionConfig()->altSource == DEFAULT)) {
         estimatedAltitudeCm = baroAlt;
 #ifdef USE_VARIO
         estimatedVario = calculateEstimatedVario(baroAlt, dTime);
 #endif
     }
     
+	
+    
     DEBUG_SET(DEBUG_ALTITUDE, 0, (int32_t)(100 * gpsTrust));
     DEBUG_SET(DEBUG_ALTITUDE, 1, baroAlt);
     DEBUG_SET(DEBUG_ALTITUDE, 2, gpsAlt);
+#ifdef USE_VARIO
+    DEBUG_SET(DEBUG_ALTITUDE, 3, estimatedVario);
+#endif
 }
 
 bool isAltitudeOffset(void)

@@ -49,7 +49,6 @@
 #define GYRO_1_CS_PIN           PB2
 #define GYRO_1_SPI_INSTANCE     SPI1
 #define GYRO_1_ALIGN            CW90_DEG
-#define ACC_1_ALIGN             CW90_DEG
 
 //------ICM20689
 #define USE_GYRO_SPI_ICM20689
@@ -125,7 +124,9 @@
 
 //ADC ----------------------------------------------
 #define USE_ADC
-#define ADC1_DMA_STREAM         DMA2_Stream0
+#define ADC_INSTANCE         ADC1  // Default added
+#define ADC1_DMA_OPT            0  // DMA 2 Stream 0 Channel 0 
+
 #define VBAT_ADC_PIN            PC0
 #define CURRENT_METER_ADC_PIN   PC1
 #define RSSI_ADC_PIN            PA0  //TIM5_CH1 & UART4_TX & TELEMETRY & FPORT
@@ -139,8 +140,6 @@
 
 #define USE_ESCSERIAL
 #define ESCSERIAL_TIMER_TX_PIN PA3
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
-
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

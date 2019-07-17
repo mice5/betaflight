@@ -21,14 +21,19 @@
 #pragma once
 
 #include "drivers/bus.h" // XXX
+#include "drivers/exti.h"
 
 struct baroDev_s;
 
 typedef void (*baroOpFuncPtr)(struct baroDev_s *baro);                       // baro start operation
 typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature); // baro calculation (filled params are pressure and temperature)
 
+// the 'u' in these variable names means 'uncompensated', 't' is temperature, 'p' pressure.
 typedef struct baroDev_s {
     busDevice_t busdev;
+#ifdef USE_EXTI
+    extiCallbackRec_t exti;
+#endif
     uint16_t ut_delay;
     uint16_t up_delay;
     baroOpFuncPtr start_ut;
@@ -37,7 +42,3 @@ typedef struct baroDev_s {
     baroOpFuncPtr get_up;
     baroCalculateFuncPtr calculate;
 } baroDev_t;
-
-#ifndef BARO_I2C_INSTANCE
-#define BARO_I2C_INSTANCE I2C_DEVICE
-#endif

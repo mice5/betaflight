@@ -41,6 +41,7 @@
 #include "io/flashfs.h"
 #include "io/beeper.h"
 
+#include "pg/motor.h"
 #include "pg/rx.h"
 
 #include "rx/rx.h"
@@ -372,9 +373,9 @@ static bool bstSlaveProcessFeedbackCommand(uint8_t bstRequest)
             bstWrite16(compassConfig()->mag_declination / 10);
 
             bstWrite8(voltageSensorADCConfig(VOLTAGE_SENSOR_ADC_VBAT)->vbatscale);
-            bstWrite8(batteryConfig()->vbatmincellvoltage);
-            bstWrite8(batteryConfig()->vbatmaxcellvoltage);
-            bstWrite8(batteryConfig()->vbatwarningcellvoltage);
+            bstWrite8((batteryConfig()->vbatmincellvoltage + 5) / 10);
+            bstWrite8((batteryConfig()->vbatmaxcellvoltage + 5) / 10);
+            bstWrite8((batteryConfig()->vbatwarningcellvoltage + 5) / 10);
             break;
 
         case BST_FEATURE:
@@ -400,17 +401,15 @@ static bool bstSlaveProcessFeedbackCommand(uint8_t bstRequest)
 #ifdef USE_LED_STRIP
         case BST_LED_COLORS:
             for (i = 0; i < LED_CONFIGURABLE_COLOR_COUNT; i++) {
-                hsvColor_t *color = &ledStripConfigMutable()->colors[i];
-                bstWrite16(color->h);
-                bstWrite8(color->s);
-                bstWrite8(color->v);
+                bstWrite16(0);
+                bstWrite8(0);
+                bstWrite8(0);
             }
             break;
 
         case BST_LED_STRIP_CONFIG:
             for (i = 0; i < LED_MAX_STRIP_LENGTH; i++) {
-                const ledConfig_t *ledConfig = &ledStripConfig()->ledConfigs[i];
-                bstWrite32(*ledConfig);
+                bstWrite32(0);
             }
             break;
 #endif
@@ -494,7 +493,7 @@ static bool bstSlaveProcessWriteCommand(uint8_t bstWriteCommand)
                     mac->range.startStep = bstRead8();
                     mac->range.endStep = bstRead8();
 
-                    useRcControlsConfig(currentPidProfile);
+                    rcControlsInit();
                 } else {
                     ret = BST_FAILED;
                 }
@@ -529,15 +528,17 @@ static bool bstSlaveProcessWriteCommand(uint8_t bstWriteCommand)
             compassConfigMutable()->mag_declination = bstRead16() * 10;
 
             voltageSensorADCConfigMutable(VOLTAGE_SENSOR_ADC_VBAT)->vbatscale = bstRead8();  // actual vbatscale as intended
-            batteryConfigMutable()->vbatmincellvoltage = bstRead8();  // vbatlevel_warn1 in MWC2.3 GUI
-            batteryConfigMutable()->vbatmaxcellvoltage = bstRead8();  // vbatlevel_warn2 in MWC2.3 GUI
-            batteryConfigMutable()->vbatwarningcellvoltage = bstRead8();  // vbatlevel when buzzer starts to alert
+            batteryConfigMutable()->vbatmincellvoltage = bstRead8() * 10;  // vbatlevel_warn1 in MWC2.3 GUI
+            batteryConfigMutable()->vbatmaxcellvoltage = bstRead8() * 10;  // vbatlevel_warn2 in MWC2.3 GUI
+            batteryConfigMutable()->vbatwarningcellvoltage = bstRead8() * 10;  // vbatlevel when buzzer starts to alert
             break;
 
+#if defined(USE_ACC)
         case BST_ACC_CALIBRATION:
            if (!ARMING_FLAG(ARMED))
                accSetCalibrationCycles(CALIBRATING_ACC_CYCLES);
            break;
+#endif
         case BST_MAG_CALIBRATION:
            if (!ARMING_FLAG(ARMED))
                ENABLE_STATE(CALIBRATE_MAG);
@@ -583,11 +584,10 @@ static bool bstSlaveProcessWriteCommand(uint8_t bstWriteCommand)
         case BST_SET_LED_COLORS:
            //for (i = 0; i < CONFIGURABLE_COLOR_COUNT; i++) {
            {
-               i = bstRead8();
-               hsvColor_t *color = &ledStripConfigMutable()->colors[i];
-               color->h = bstRead16();
-               color->s = bstRead8();
-               color->v = bstRead8();
+               bstRead8();
+               bstRead16();
+               bstRead8();
+               bstRead8();
            }
            break;
         case BST_SET_LED_STRIP_CONFIG:
@@ -597,9 +597,11 @@ static bool bstSlaveProcessWriteCommand(uint8_t bstWriteCommand)
                    ret = BST_FAILED;
                    break;
                }
-               ledConfig_t *ledConfig = &ledStripConfigMutable()->ledConfigs[i];
+#if defined(USE_LED_STRIP_STATUS_MODE)
+               ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[i];
                *ledConfig = bstRead32();
                reevaluateLedConfig();
+#endif
            }
            break;
 #endif
@@ -784,8 +786,8 @@ static void bstMasterWrite16(uint16_t data)
 #ifdef USE_GPS
 static void bstMasterWrite32(uint32_t data)
 {
-    bstMasterWrite16((uint8_t)(data >> 16));
-    bstMasterWrite16((uint8_t)(data >> 0));
+    bstMasterWrite16((uint16_t)(data >> 16));
+    bstMasterWrite16((uint16_t)(data >> 0));
 }
 
 static int32_t lat = 0;
@@ -797,7 +799,7 @@ static uint8_t numOfSat = 0;
 #ifdef USE_GPS
 bool writeGpsPositionPrameToBST(void)
 {
-    if ((lat != gpsSol.llh.lat) || (lon != gpsSol.llh.lon) || (alt != (gpsSol.llh.altCm / 100)) || (numOfSat != gpsSol.numSat)) {
+    if ((lat != gpsSol.llh.lat) || (lon != gpsSol.llh.lon) || (altM != (gpsSol.llh.altCm / 100)) || (numOfSat != gpsSol.numSat)) {
         lat = gpsSol.llh.lat;
         lon = gpsSol.llh.lon;
         altM = gpsSol.llh.altCm / 100;

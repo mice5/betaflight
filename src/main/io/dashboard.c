@@ -47,8 +47,6 @@
 #include "common/typeconversion.h"
 
 #include "config/feature.h"
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
 #include "pg/dashboard.h"
 #include "pg/rx.h"
 
@@ -450,7 +448,7 @@ static void showBatteryPage(void)
     uint8_t rowIndex = PAGE_TITLE_LINE_COUNT;
 
     if (batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE) {
-        tfp_sprintf(lineBuffer, "Volts: %d.%1d Cells: %d", getBatteryVoltage() / 10, getBatteryVoltage() % 10, getBatteryCellCount());
+        tfp_sprintf(lineBuffer, "Volts: %d.%02d Cells: %d", getBatteryVoltage() / 100, getBatteryVoltage() % 100, getBatteryCellCount());
         padLineBuffer();
         i2c_OLED_set_line(bus, rowIndex++);
         i2c_OLED_send_string(bus, lineBuffer);
@@ -484,12 +482,14 @@ static void showSensorsPage(void)
     i2c_OLED_set_line(bus, rowIndex++);
     i2c_OLED_send_string(bus, "        X     Y     Z");
 
+#if defined(USE_ACC)
     if (sensors(SENSOR_ACC)) {
         tfp_sprintf(lineBuffer, format, "ACC", lrintf(acc.accADC[X]), lrintf(acc.accADC[Y]), lrintf(acc.accADC[Z]));
         padLineBuffer();
         i2c_OLED_set_line(bus, rowIndex++);
         i2c_OLED_send_string(bus, lineBuffer);
     }
+#endif
 
     if (sensors(SENSOR_GYRO)) {
         tfp_sprintf(lineBuffer, format, "GYR", lrintf(gyro.gyroADCf[X]), lrintf(gyro.gyroADCf[Y]), lrintf(gyro.gyroADCf[Z]));

@@ -40,6 +40,7 @@ const char *armingDisableFlagNames[]= {
     "BADRX",
     "BOXFAILSAFE",
     "RUNAWAY",
+    "CRASH",
     "THROTTLE",
     "ANGLE",
     "BOOTGRACE",
@@ -48,12 +49,14 @@ const char *armingDisableFlagNames[]= {
     "CALIB",
     "CLI",
     "CMS",
-    "OSD",
     "BST",
     "MSP",
     "PARALYZE",
     "GPS",
-    "ARMSWITCH"
+    "RESCUE_SW",
+    "RPMFILTER",
+    "REBOOT_REQD",
+    "ARMSWITCH",
 };
 
 static armingDisableFlags_e armingDisableFlags = 0;

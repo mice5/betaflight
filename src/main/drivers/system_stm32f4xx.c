@@ -27,6 +27,7 @@
 #include "drivers/exti.h"
 #include "drivers/nvic.h"
 #include "drivers/system.h"
+#include "drivers/persistent.h"
 
 
 #define AIRCR_VECTKEY_MASK    ((uint32_t)0x05FA0000)
@@ -38,12 +39,15 @@ void systemReset(void)
     NVIC_SystemReset();
 }
 
-PERSISTENT uint32_t bootloaderRequest = 0;
-#define BOOTLOADER_REQUEST_COOKIE 0xDEADBEEF
-
-void systemResetToBootloader(void)
+void systemResetToBootloader(bootloaderRequestType_e requestType)
 {
-    bootloaderRequest = BOOTLOADER_REQUEST_COOKIE;
+    switch (requestType) {
+    case BOOTLOADER_REQUEST_ROM:
+    default:
+        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
+
+        break;
+    }
 
     __disable_irq();
     NVIC_SystemReset();
@@ -56,13 +60,15 @@ typedef struct isrVector_s {
     resetHandler_t *resetHandler;
 } isrVector_t;
 
+// Used in the startup files for F4
 void checkForBootLoaderRequest(void)
 {
-    if (bootloaderRequest != BOOTLOADER_REQUEST_COOKIE) {
+    uint32_t bootloaderRequest = persistentObjectRead(PERSISTENT_OBJECT_RESET_REASON);
+
+    if (bootloaderRequest != RESET_BOOTLOADER_REQUEST_ROM) {
         return;
     }
-
-    bootloaderRequest = 0;
+    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
 
     extern isrVector_t system_isr_vector_table_base;
 
@@ -188,9 +194,12 @@ void systemInit(void)
     // cache RCC->CSR value to use it in isMPUSoftReset() and others
     cachedRccCsrValue = RCC->CSR;
 
-    /* Accounts for OP Bootloader, set the Vector Table base address as specified in .ld file */
-    extern void *isr_vector_table_base;
+    // Although VTOR is already loaded with a possible vector table in RAM,
+    // removing the call to NVIC_SetVectorTable causes USB not to become active,
+
+    extern uint8_t isr_vector_table_base;
     NVIC_SetVectorTable((uint32_t)&isr_vector_table_base, 0x0);
+
     RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_OTG_FS, DISABLE);
 
     RCC_ClearFlag();

@@ -18,6 +18,8 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "platform.h"
+
 #include "resource.h"
 
 const char * const ownerNames[OWNER_TOTAL_COUNT] = {
@@ -54,7 +56,7 @@ const char * const ownerNames[OWNER_TOTAL_COUNT] = {
     "RX_SPI_CS",
     "SPI_CS",
     "GYRO_EXTI",
-    "BARO_EXTI",
+    "BARO_EOC",
     "COMPASS_EXTI",
     "USB",
     "USB_DETECT",
@@ -64,7 +66,10 @@ const char * const ownerNames[OWNER_TOTAL_COUNT] = {
     "INVERTER",
     "LED_STRIP",
     "TRANSPONDER",
-    "VTX",
+    "VTX_POWER",
+    "VTX_CS",
+    "VTX_DATA",
+    "VTX_CLK",
     "COMPASS_CS",
     "RX_BIND_PLUG",
     "ESCSERIAL",
@@ -74,9 +79,24 @@ const char * const ownerNames[OWNER_TOTAL_COUNT] = {
     "RX_SPI",
     "PINIO",
     "USB_MSC_PIN",
-    "SPI_PREINIT_IPU",
-    "SPI_PREINIT_OPU",
     "MCO",
     "RX_SPI_BIND",
     "RX_SPI_LED",
+    "PREINIT",
+    "RX_SPI_EXTI",
+    "RX_SPI_CC2500_TX_EN",
+    "RX_SPI_CC2500_LNA_EN",
+    "RX_SPI_CC2500_ANT_SEL",
+    "QSPI_CLK",
+    "QSPI_BK1IO0",
+    "QSPI_BK1IO1",
+    "QSPI_BK1IO2",
+    "QSPI_BK1IO3",
+    "QSPI_BK1CS",
+    "QSPI_BK2IO0",
+    "QSPI_BK2IO1",
+    "QSPI_BK2IO2",
+    "QSPI_BK2IO3",
+    "QSPI_BK2CS",
+    "BARO_XCLR",
 };

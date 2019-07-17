@@ -60,8 +60,6 @@
 #define USE_ACC
 #define USE_ACC_SPI_MPU6000
 #define USE_ACC_SPI_MPU6500
-#define ACC_1_ALIGN             CW270_DEG
-//#define ACC_1_ALIGN             CW180_DEG // XXX MPU6500 align, must be configured after flashing
 
 #define USE_MAG
 #define USE_MAG_HMC5883
@@ -108,8 +106,7 @@
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
 #define SDCARD_SPI_INSTANCE     SPI3
 #define SDCARD_SPI_CS_PIN       PC1
-#define SDCARD_DMA_CHANNEL_TX               DMA1_Stream7
-#define SDCARD_DMA_CHANNEL                  0
+#define SPI3_TX_DMA_OPT                     1     // DMA 1 Stream 7 Channel 0
 
 // *************** OSD *****************************
 #define USE_SPI_DEVICE_2
@@ -157,7 +154,9 @@
 
 // *************** ADC *****************************
 #define USE_ADC
-#define ADC1_DMA_STREAM         DMA2_Stream0
+#define ADC_INSTANCE         ADC1  // Default added
+#define ADC1_DMA_OPT            0  // DMA 2 Stream 0 Channel 0 
+
 #define VBAT_ADC_PIN            PC5
 #define CURRENT_METER_ADC_PIN   PC4
 #define RSSI_ADC_PIN            PB1
@@ -169,7 +168,6 @@
 
 #define USE_ESCSERIAL
 #define ESCSERIAL_TIMER_TX_PIN PA3
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

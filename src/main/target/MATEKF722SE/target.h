@@ -42,7 +42,6 @@
 #define SPI1_MISO_PIN           PA6
 #define SPI1_MOSI_PIN           PA7
 
-#define USE_DUAL_GYRO
 #define USE_EXTI
 #define USE_GYRO_EXTI
 #define GYRO_1_EXTI_PIN         PC4
@@ -62,10 +61,8 @@
 #define USE_ACC_SPI_MPU6500
  
 #define GYRO_1_ALIGN            CW180_DEG_FLIP
-#define ACC_1_ALIGN             CW180_DEG_FLIP
 
 #define GYRO_2_ALIGN            CW90_DEG
-#define ACC_2_ALIGN             CW90_DEG
 
 #define USE_MPU_DATA_READY_SIGNAL
 #define ENSURE_MPU_DATA_READY_IS_LOW
@@ -102,8 +99,6 @@
 #define USE_MAX7456
 #define MAX7456_SPI_INSTANCE    SPI2
 #define MAX7456_SPI_CS_PIN      PB12
-#define MAX7456_SPI_CLK         (SPI_CLOCK_STANDARD)
-#define MAX7456_RESTORE_CLK     (SPI_CLOCK_FAST)
 
 // *************** SPI3 SD BLACKBOX****************
 
@@ -119,8 +114,12 @@
 #define SDCARD_SPI_INSTANCE     SPI3
 #define SDCARD_SPI_CS_PIN       PD2
 
-#define SDCARD_DMA_STREAM_TX_FULL           DMA1_Stream5
-#define SDCARD_DMA_CHANNEL                  0
+#define SPI3_TX_DMA_OPT                     0     // DMA 1 Stream 5 Channel 0
+
+#define USE_FLASHFS
+#define USE_FLASH_M25P16
+#define FLASH_SPI_INSTANCE      SPI3
+#define FLASH_CS_PIN            PD2
 
 // *************** UART *****************************
 
@@ -158,7 +157,9 @@
 
 // *************** ADC *****************************
 #define USE_ADC
-#define ADC1_DMA_STREAM         DMA2_Stream0
+#define ADC_INSTANCE         ADC1  // Default added
+#define ADC1_DMA_OPT            0  // DMA 2 Stream 0 Channel 0 
+
 #define VBAT_ADC_PIN            PC2
 #define CURRENT_METER_ADC_PIN   PC1
 #define RSSI_ADC_PIN            PC0
@@ -177,7 +178,6 @@
 #define CURRENT_METER_SCALE_DEFAULT 179
 
 #define USE_ESCSERIAL
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff

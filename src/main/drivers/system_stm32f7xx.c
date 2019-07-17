@@ -29,11 +29,16 @@
 #include "drivers/exti.h"
 #include "drivers/nvic.h"
 #include "drivers/system.h"
+#include "drivers/persistent.h"
 
 #include "stm32f7xx_ll_cortex.h"
 
 
 #define AIRCR_VECTKEY_MASK    ((uint32_t)0x05FA0000)
+
+#define DEFAULT_STACK_POINTER ((uint32_t *) 0x1FF00000)
+#define SYSTEM_MEMORY_RESET_VECTOR ((uint32_t *) 0x1FF00004)
+
 void SystemClock_Config(void);
 
 void systemReset(void)
@@ -42,9 +47,15 @@ void systemReset(void)
     NVIC_SystemReset();
 }
 
-void systemResetToBootloader(void)
+void systemResetToBootloader(bootloaderRequestType_e requestType)
 {
-    (*(__IO uint32_t *) (BKPSRAM_BASE + 4)) = 0xDEADBEEF;   // flag that will be readable after reboot
+    switch (requestType) {
+    case BOOTLOADER_REQUEST_ROM:
+    default:
+        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
+
+        break;
+    }
 
     __disable_irq();
     NVIC_SystemReset();
@@ -152,6 +163,25 @@ bool isMPUSoftReset(void)
         return false;
 }
 
+static void checkForBootLoaderRequest(void)
+{
+    uint32_t bootloaderRequest = persistentObjectRead(PERSISTENT_OBJECT_RESET_REASON);
+
+    if (bootloaderRequest != RESET_BOOTLOADER_REQUEST_ROM) {
+        return;
+    }
+    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
+
+    __SYSCFG_CLK_ENABLE();
+    SYSCFG->MEMRMP |= SYSCFG_MEM_BOOT_ADD0 ;
+
+    __set_MSP(*DEFAULT_STACK_POINTER);
+
+    ((void (*)(void))*SYSTEM_MEMORY_RESET_VECTOR)();
+
+    while (1);
+}
+
 void systemInit(void)
 {
     checkForBootLoaderRequest();
@@ -185,30 +215,4 @@ void systemInit(void)
     HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
     HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-}
-
-void(*bootJump)(void);
-void checkForBootLoaderRequest(void)
-{
-    uint32_t bt;
-    __PWR_CLK_ENABLE();
-    __BKPSRAM_CLK_ENABLE();
-    HAL_PWR_EnableBkUpAccess();
-
-    bt = (*(__IO uint32_t *) (BKPSRAM_BASE + 4)) ;
-    if ( bt == 0xDEADBEEF ) {
-        (*(__IO uint32_t *) (BKPSRAM_BASE + 4)) =  0xCAFEFEED; // Reset our trigger
-        // Backup SRAM is write-back by default, ensure value actually reaches memory
-        // Another solution would be marking BKPSRAM as write-through in Memory Protection Unit settings
-        SCB_CleanDCache_by_Addr((uint32_t *) (BKPSRAM_BASE + 4), sizeof(uint32_t));
-
-        void (*SysMemBootJump)(void);
-        __SYSCFG_CLK_ENABLE();
-        SYSCFG->MEMRMP |= SYSCFG_MEM_BOOT_ADD0 ;
-        uint32_t p =  (*((uint32_t *) 0x1ff00000));
-        __set_MSP(p); //Set the main stack pointer to its defualt values
-        SysMemBootJump = (void (*)(void)) (*((uint32_t *) 0x1ff00004)); // Point the PC to the System Memory reset vector (+4)
-        SysMemBootJump();
-        while (1);
-    }
 }
