@@ -210,7 +210,7 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
     { DMA_PERIPH_SPI_TX,  SPIDEV_3,  { DMA(1, 5, 0), DMA(1, 7, 0) } },
     { DMA_PERIPH_SPI_RX,  SPIDEV_3,  { DMA(1, 0, 0), DMA(1, 2, 0) } },
 
-#if defined(STM32F411xE) || defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx) || defined(STM32F722xx)
+#if defined(STM32F411xE) || defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx) || defined(STM32F767xx) || defined(STM32F722xx)
     { DMA_PERIPH_SPI_TX,  SPIDEV_4,  { DMA(2, 1, 4) } },
     { DMA_PERIPH_SPI_RX,  SPIDEV_4,  { DMA(2, 0, 4) } },
 

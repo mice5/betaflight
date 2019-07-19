@@ -47,7 +47,6 @@
 
 #define USE_ACC
 #define USE_ACC_SPI_MPU6500
-#define ACC_1_ALIGN             CW90_DEG
 
 #define USE_GYRO
 #define USE_GYRO_SPI_MPU6500
@@ -63,10 +62,11 @@
 #define USE_BARO
 #define USE_BARO_MS5611
 #define USE_BARO_SPI_MS5611
-#define MS5611_CS_PIN           PC13
-#define MS5611_SPI_INSTANCE		SPI4
+#define BARO_CS_PIN             PC13
+#define BARO_SPI_INSTANCE       SPI4
 
 /* UPDATE */
+#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
 #define FLASH_CS_PIN         PB12
 #define FLASH_SPI_INSTANCE   SPI1
 #define USE_FLASHFS
@@ -74,7 +74,8 @@
 /* UPDATE */
 
 #define USE_VCP
-#define VBUS_SENSING_PIN PA9
+#define USE_USB_DETECT
+#define USB_DETECT_PIN          PA9
 
 #define USE_UART1
 #define UART1_RX_PIN PB15
@@ -98,6 +99,8 @@
 
 #define SERIAL_PORT_COUNT 6 //VCP, USART1, USART3, UART4, UART5, USART6
 
+#define USE_ESCSERIAL
+
 #define USE_SPI
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_4
@@ -120,19 +123,24 @@
 #define I2C1_SCL				PB6
 #define I2C1_SDA				PB7
 
+#define DEFAULT_FEATURES        (FEATURE_LED_STRIP | FEATURE_TELEMETRY )
+#define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_ADC
+#define DEFAULT_CURRENT_METER_SOURCE    CURRENT_METER_ADC
+
 #define USE_ADC
-#define ADC1_DMA_STREAM         DMA2_Stream0
-#define VBAT_ADC_PIN                PA3
-#define CURRENT_METER_ADC_PIN       PA0
-#define BOARD_HAS_VOLTAGE_DIVIDER
+#define ADC_INSTANCE            ADC1
+#define ADC1_DMA_OPT            0  // DMA 2 Stream 0 Channel 0 
+#define VBAT_ADC_PIN            PA3
+#define CURRENT_METER_ADC_PIN   PA0
+
+#define VBAT_SCALE_DEFAULT 109
+#define CURRENT_METER_SCALE_DEFAULT 179
 
 #define LED_STRIP
 
-
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SERIAL
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
-
-#define USE_SERIAL_4WAY_BLHELI_INTERFACE
+#define SERIALRX_UART           SERIAL_PORT_USART3
 
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff
