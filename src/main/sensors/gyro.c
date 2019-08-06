@@ -100,8 +100,7 @@ static FAST_RAM_ZERO_INIT bool yawSpinDetected;
 
 static FAST_RAM_ZERO_INIT float accumulatedMeasurements[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float gyroPrevious[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT timeUs_t accumulatedMeasurementTimeUs;
-static FAST_RAM_ZERO_INIT timeUs_t accumulationLastTimeSampledUs;
+static FAST_RAM_ZERO_INIT int accumulatedMeasurementCount;
 
 static FAST_RAM_ZERO_INIT int16_t gyroSensorTemperature;
 
@@ -416,9 +415,15 @@ static bool gyroDetectSensor(gyroSensor_t *gyroSensor, const gyroDeviceConfig_t 
 #if defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) \
  || defined(USE_ACC_MPU6050) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20601) || defined(USE_GYRO_SPI_ICM20649) || defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_L3GD20)
 
-    if (!mpuDetect(&gyroSensor->gyroDev, config)) {
+    bool gyroFound = mpuDetect(&gyroSensor->gyroDev, config);
+
+#if !defined(USE_FAKE_GYRO) // Allow resorting to fake accgyro if defined
+    if (!gyroFound) {
         return false;
     }
+#else
+    UNUSED(gyroFound);
+#endif
 #else
     UNUSED(config);
 #endif
@@ -828,6 +833,12 @@ static bool isOnFirstGyroCalibrationCycle(const gyroCalibration_t *gyroCalibrati
 
 static void gyroSetCalibrationCycles(gyroSensor_t *gyroSensor)
 {
+#if defined(USE_FAKE_GYRO) && !defined(UNIT_TEST)
+    if (gyroSensor->gyroDev.gyroHardware == GYRO_FAKE) {
+        gyroSensor->calibration.cyclesRemaining = 0;
+        return;
+    }
+#endif
     gyroSensor->calibration.cyclesRemaining = gyroCalculateCalibratingCycles();
 }
 
@@ -1080,9 +1091,6 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
 
 FAST_CODE void gyroUpdate(timeUs_t currentTimeUs)
 {
-    const timeDelta_t sampleDeltaUs = currentTimeUs - accumulationLastTimeSampledUs;
-    accumulationLastTimeSampledUs = currentTimeUs;
-    accumulatedMeasurementTimeUs += sampleDeltaUs;
 
     switch (gyroToUse) {
     case GYRO_CONFIG_USE_GYRO_1:
@@ -1175,22 +1183,24 @@ FAST_CODE void gyroUpdate(timeUs_t currentTimeUs)
     if (!overflowDetected) {
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             // integrate using trapezium rule to avoid bias
-            accumulatedMeasurements[axis] += 0.5f * (gyroPrevious[axis] + gyro.gyroADCf[axis]) * sampleDeltaUs;
+            accumulatedMeasurements[axis] += 0.5f * (gyroPrevious[axis] + gyro.gyroADCf[axis]) * gyro.targetLooptime;
             gyroPrevious[axis] = gyro.gyroADCf[axis];
         }
+        accumulatedMeasurementCount++;
     }
 
 }
 
 bool gyroGetAccumulationAverage(float *accumulationAverage)
 {
-    if (accumulatedMeasurementTimeUs > 0) {
+    if (accumulatedMeasurementCount) {
         // If we have gyro data accumulated, calculate average rate that will yield the same rotation
+        const timeUs_t accumulatedMeasurementTimeUs = accumulatedMeasurementCount * gyro.targetLooptime;
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             accumulationAverage[axis] = accumulatedMeasurements[axis] / accumulatedMeasurementTimeUs;
             accumulatedMeasurements[axis] = 0.0f;
         }
-        accumulatedMeasurementTimeUs = 0;
+        accumulatedMeasurementCount = 0;
         return true;
     } else {
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {

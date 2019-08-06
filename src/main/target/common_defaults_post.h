@@ -177,6 +177,19 @@
 
 #endif // I2C_FULL_RECONFIGURABILITY
 
+#ifndef I2C1_OVERCLOCK
+#define I2C1_OVERCLOCK false
+#endif
+#ifndef I2C2_OVERCLOCK
+#define I2C2_OVERCLOCK false
+#endif
+#ifndef I2C3_OVERCLOCK
+#define I2C3_OVERCLOCK false
+#endif
+#ifndef I2C4_OVERCLOCK
+#define I2C4_OVERCLOCK false
+#endif
+
 // Default values for internal pullup
 
 #if defined(USE_I2C_PULLUP)
@@ -365,13 +378,10 @@
 #define GYRO_2_ALIGN            CW0_DEG
 #endif
 
-#if !defined(GYRO_1_CUSTOM_ALIGN)
-#define GYRO_1_CUSTOM_ALIGN            CUSTOM_ALIGN_CW0_DEG
-#endif
-
-#if !defined(GYRO_2_CUSTOM_ALIGN)
-#define GYRO_2_CUSTOM_ALIGN            CUSTOM_ALIGN_CW0_DEG
-#endif
+// Previously there was logic here to default GYRO_1_CUSTOM_ALIGN and GYRO_2_CUSTOM_ALIGN
+// to CUSTOM_ALIGN_CW0_DEG if they weren't defined in the target. The defaulting logic
+// has been moved to pg/gyrodev.c to set the custom alignment based on the sensor alignment
+// if a custom alignment is not applied in the target.
 
 #ifdef USE_VCP
 #ifndef USB_DETECT_PIN

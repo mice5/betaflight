@@ -261,7 +261,7 @@ static const char * const *sensorHardwareNames[] = {
 
 #if defined(USE_DSHOT) && defined(USE_DSHOT_TELEMETRY)
 extern uint32_t readDoneCount;
-extern uint32_t inputBuffer[DSHOT_TELEMETRY_INPUT_LEN];
+extern uint32_t inputBuffer[GCR_TELEMETRY_INPUT_LEN];
 extern uint32_t setDirectionMicros;
 #endif
 
@@ -484,6 +484,11 @@ static void printValuePointer(const clivalue_t *var, const void *valuePointer, b
             case VAR_INT16:
                 // int16_t array
                 cliPrintf("%d", ((int16_t *)valuePointer)[i]);
+                break;
+
+            case VAR_UINT32:
+                // uin32_t array
+                cliPrintf("%u", ((uint32_t *)valuePointer)[i]);
                 break;
             }
 
@@ -2593,7 +2598,7 @@ static char *formatVtxTablePowerValues(const uint16_t *levels, int count)
 
 static const char *printVtxTablePowerValues(dumpFlags_t dumpMask, const vtxTableConfig_t *currentConfig, const vtxTableConfig_t *defaultConfig, const char *headingStr)
 {
-    char *fmt = "vtxtable powervalues %s";
+    char *fmt = "vtxtable powervalues%s";
     bool equalsDefault = false;
     if (defaultConfig) {
         equalsDefault = true;
@@ -4325,6 +4330,15 @@ STATIC_UNIT_TESTED void cliSet(char *cmdline)
                         }
 
                         break;
+                    case VAR_UINT32:
+                        {
+                            // fetch data pointer
+                            uint32_t *data = (uint32_t *)cliGetValuePointer(val) + i;
+                            // store value
+                            *data = (uint32_t)strtoul((const char*) valPtr, NULL, 10);
+                       }
+
+                        break;
                     }
 
                     // find next comma (or end of string)
@@ -5666,15 +5680,13 @@ static void cliDshotTelemetryInfo(char *cmdline)
         }
         cliPrintLinefeed();
 
-        const bool proshot = (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_PROSHOT1000);
-        const int modulo = proshot ? MOTOR_NIBBLE_LENGTH_PROSHOT : MOTOR_BITLENGTH;
-        const int len = proshot ? 8 : DSHOT_TELEMETRY_INPUT_LEN;
+        const int len = MAX_GCR_EDGES;
         for (int i = 0; i < len; i++) {
             cliPrintf("%u ", (int)inputBuffer[i]);
         }
         cliPrintLinefeed();
-        for (int i = 1; i < len; i+=2) {
-            cliPrintf("%u ", (int)(inputBuffer[i] + modulo - inputBuffer[i-1]) % modulo);
+        for (int i = 1; i < len; i++) {
+            cliPrintf("%u ", (int)(inputBuffer[i]  - inputBuffer[i-1]));
         }
         cliPrintLinefeed();
     } else {
@@ -5998,7 +6010,7 @@ const clicmd_t cmdTable[] = {
 
 #endif
 #ifdef USE_DSHOT_TELEMETRY
-    CLI_COMMAND_DEF("dshot_telemetry_info", "disply dshot telemetry info and stats", NULL, cliDshotTelemetryInfo),
+    CLI_COMMAND_DEF("dshot_telemetry_info", "display dshot telemetry info and stats", NULL, cliDshotTelemetryInfo),
 #endif
 #ifdef USE_DSHOT
     CLI_COMMAND_DEF("dshotprog", "program DShot ESC(s)", "<index> <command>+", cliDshotProg),
@@ -6107,7 +6119,7 @@ const clicmd_t cmdTable[] = {
 #endif
 #endif
 #ifdef USE_VTX_TABLE
-    CLI_COMMAND_DEF("vtxtable", "vtx frequency able", "<band> <bandname> <bandletter> [FACTORY|CUSTOM] <freq> ... <freq>\r\n", cliVtxTable),
+    CLI_COMMAND_DEF("vtxtable", "vtx frequency table", "<band> <bandname> <bandletter> [FACTORY|CUSTOM] <freq> ... <freq>\r\n", cliVtxTable),
 #endif
 };
 

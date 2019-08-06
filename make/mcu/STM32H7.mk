@@ -163,6 +163,16 @@ DEVICE_FLAGS       += -DSTM32H743xx
 DEFAULT_LD_SCRIPT   = $(LINKER_DIR)/stm32_flash_h743_2m.ld
 STARTUP_SRC         = startup_stm32h743xx.s
 TARGET_FLASH       := 2048
+DEVICE_FLAGS       += -DMAX_MPU_REGIONS=16
+
+ifeq ($(RAM_BASED),yes)
+FIRMWARE_SIZE      := 448
+# TARGET_FLASH now becomes the amount of RAM memory that is occupied by the firmware
+# and the maximum size of the data stored on the external storage device.
+TARGET_FLASH       := FIRMWARE_SIZE
+DEFAULT_LD_SCRIPT   = $(LINKER_DIR)/stm32_flash_h743_ram_based.ld
+endif
+
 else ifeq ($(TARGET),$(filter $(TARGET),$(H750xB_TARGETS)))
 DEVICE_FLAGS       += -DSTM32H750xx
 DEFAULT_LD_SCRIPT   = $(LINKER_DIR)/stm32_flash_h750_128k.ld
@@ -179,6 +189,13 @@ FIRMWARE_SIZE      := 448
 # and the maximum size of the data stored on the external storage device.
 TARGET_FLASH       := FIRMWARE_SIZE
 DEFAULT_LD_SCRIPT   = $(LINKER_DIR)/stm32_flash_h750_exst.ld
+endif
+
+ifeq ($(EXST),yes)
+# Upper 8 regions are reserved for a boot loader in EXST environment
+DEVICE_FLAGS       += -DMAX_MPU_REGIONS=8
+else
+DEVICE_FLAGS       += -DMAX_MPU_REGIONS=16
 endif
 
 ifneq ($(DEBUG),GDB)
@@ -218,8 +235,8 @@ MCU_COMMON_SRC = \
             drivers/system_stm32h7xx.c \
             drivers/timer_hal.c \
             drivers/timer_stm32h7xx.c \
-            drivers/serial_uart_stm32h7xx.c \
             drivers/serial_uart_hal.c \
+            drivers/serial_uart_stm32h7xx.c \
             drivers/bus_quadspi_hal.c \
             drivers/bus_spi_hal.c \
             drivers/dma_stm32h7xx.c \
@@ -230,12 +247,13 @@ MCU_COMMON_SRC = \
             drivers/persistent.c \
             drivers/transponder_ir_io_hal.c \
             drivers/audio_stm32h7xx.c \
+            drivers/memprot_hal.c \
+            drivers/memprot_stm32h7xx.c \
             #drivers/accgyro/accgyro_mpu.c \
 
 MCU_EXCLUDES = \
             drivers/bus_i2c.c \
-            drivers/timer.c \
-            drivers/serial_uart.c
+            drivers/timer.c
 
 #MSC_SRC = \
 #            drivers/usb_msc_h7xx.c \
