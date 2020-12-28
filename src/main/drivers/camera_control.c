@@ -30,14 +30,6 @@
 #include "time.h"
 #include "pg/pg_ids.h"
 
-#if defined(STM32F40_41xxx)
-#define CAMERA_CONTROL_TIMER_HZ   MHZ_TO_HZ(84)
-#elif defined(STM32F7)
-#define CAMERA_CONTROL_TIMER_HZ   MHZ_TO_HZ(216)
-#else
-#define CAMERA_CONTROL_TIMER_HZ   MHZ_TO_HZ(72)
-#endif
-
 #define CAMERA_CONTROL_PWM_RESOLUTION   128
 #define CAMERA_CONTROL_SOFT_PWM_RESOLUTION 448
 
@@ -47,7 +39,7 @@
 #define ADC_VOLTAGE 3.3f
 #endif
 
-#if !defined(STM32F411xE) && !defined(STM32F7) && !defined(STM32H7)
+#if !defined(STM32F411xE) && !defined(STM32F7) && !defined(STM32H7) && !defined(STM32G4)
 #define CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE
 #include "build/atomic.h"
 #endif
@@ -131,7 +123,7 @@ void cameraControlInit(void)
 
     if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode) {
 #ifdef CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE
-        const timerHardware_t *timerHardware = timerGetByTag(cameraControlConfig()->ioTag);
+        const timerHardware_t *timerHardware = timerAllocate(cameraControlConfig()->ioTag, OWNER_CAMERA_CONTROL, 0);
 
         if (!timerHardware) {
             return;
@@ -143,7 +135,7 @@ void cameraControlInit(void)
             IOConfigGPIOAF(cameraControlRuntime.io, IOCFG_AF_PP, timerHardware->alternateFunction);
         #endif
 
-        pwmOutConfig(&cameraControlRuntime.channel, timerHardware, CAMERA_CONTROL_TIMER_HZ, CAMERA_CONTROL_PWM_RESOLUTION, 0, cameraControlRuntime.inverted);
+        pwmOutConfig(&cameraControlRuntime.channel, timerHardware, timerClock(TIM6), CAMERA_CONTROL_PWM_RESOLUTION, 0, cameraControlRuntime.inverted);
 
         cameraControlRuntime.period = CAMERA_CONTROL_PWM_RESOLUTION;
         *cameraControlRuntime.channel.ccr = cameraControlRuntime.period;

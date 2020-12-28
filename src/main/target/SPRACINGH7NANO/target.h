@@ -25,7 +25,7 @@
 
 #define USE_TARGET_CONFIG
 
-#define DEBUG_MODE DEBUG_ADC_INTERNAL
+#define USE_SPRACING_PERSISTENT_RTC_WORKAROUND
 
 #define LED0_PIN                PE3
 
@@ -129,8 +129,13 @@
 #define I2C1_SDA                PB9
 #define I2C_DEVICE              (I2CDEV_1)
 
+#define USE_I2C_DEVICE_4        // Shared with motor outputs 5/6
+#define I2C4_SCL                PB6
+#define I2C4_SDA                PB7
+
 #define USE_MAG
 #define USE_MAG_HMC5883
+#define USE_MAG_QMC5883
 
 #define USE_BARO
 #define USE_BARO_BMP388
@@ -172,7 +177,6 @@
 // SD card not present on hardware, but pins are reserved.
 //#define USE_SDCARD
 #ifdef USE_SDCARD
-#define USE_SDCARD_SDIO
 #define SDCARD_DETECT_PIN PD10
 #define SDCARD_DETECT_INVERTED
 #define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT

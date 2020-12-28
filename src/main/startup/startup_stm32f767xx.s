@@ -2,6 +2,8 @@
   ******************************************************************************
   * @file      startup_stm32f767xx.s
   * @author    MCD Application Team
+  * @version   V1.2.1
+  * @date      28-December-2020
   * @brief     STM32F767xx Devices vector table for GCC based toolchain. 
   *            This module performs:
   *                - Set the initial SP
@@ -135,6 +137,19 @@ LoopFillZerofastram_bss:
   ldr  r3, = _efastram_bss
   cmp  r2, r3
   bcc  FillZerofastram_bss
+
+/* Mark the heap and stack */
+  ldr r2, =_heap_stack_begin
+  b   LoopMarkHeapStack
+
+MarkHeapStack:
+  movs    r3, 0xa5a5a5a5
+  str r3, [r2], #4
+
+LoopMarkHeapStack:
+  ldr r3, = _heap_stack_end
+  cmp r2, r3
+  bcc MarkHeapStack
 
 /* Call the clock system initialization function.*/
   bl  SystemInit   

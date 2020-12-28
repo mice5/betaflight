@@ -31,7 +31,7 @@ uint8_t debugMode;
 uint32_t sectionTimes[2][4];
 #endif
 
-// Please ensure that these names are aligned with the enum values defined in 'debug.h'
+// Please ensure that these names are aligned with the enum values defined in 'debug.h' - for OSD be sure the name is unique with 12 chars.
 const char * const debugModeNames[DEBUG_COUNT] = {
     "NONE",
     "CYCLETIME",
@@ -54,9 +54,7 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     "RX_FRSKY_SPI",
     "RX_SFHSS_SPI",
     "GYRO_RAW",
-    "DUAL_GYRO",
     "DUAL_GYRO_RAW",
-    "DUAL_GYRO_COMBINE",
     "DUAL_GYRO_DIFF",
     "MAX7456_SIGNAL",
     "MAX7456_SPICLOCK",
@@ -93,4 +91,12 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     "BARO",
     "GPS_RESCUE_THROTTLE_PID",
     "DYN_IDLE",
+    "FF_LIMIT",
+    "FF_INTERPOLATED",
+    "BLACKBOX_OUTPUT",
+    "GYRO_SAMPLE",
+    "RX_TIMING",
+    "D_LPF",
+    "VTX_TRAMP",
+    "GHST",
 };

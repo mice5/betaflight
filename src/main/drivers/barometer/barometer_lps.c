@@ -34,6 +34,8 @@
 #include "drivers/io.h"
 #include "drivers/time.h"
 
+// 10 MHz max SPI frequency
+#define LPS_MAX_SPI_CLK_HZ 10000000
 //====================================Registers Addresses=========================================//
 #define LPS_REF_P_XL    0x08
 #define LPS_REF_P_L     0x09
@@ -225,7 +227,13 @@ static void lpsNothing(baroDev_t *baro)
     return;
 }
 
-static void lpsRead(baroDev_t *baro)
+static bool lpsNothingBool(baroDev_t *baro)
+{
+    UNUSED(baro);
+    return true;
+}
+
+static bool lpsRead(baroDev_t *baro)
 {
     uint8_t status = 0x00;
     lpsReadCommand(&baro->busdev, LPS_STATUS, &status, 1);
@@ -240,6 +248,8 @@ static void lpsRead(baroDev_t *baro)
         rawP = 0;
         rawT = 0;
     }
+
+    return true;
 }
 
 static void lpsCalculate(int32_t *pressure, int32_t *temperature)
@@ -261,9 +271,9 @@ bool lpsDetect(baroDev_t *baro)
     IOConfigGPIO(busdev->busdev_u.spi.csnPin, IOCFG_OUT_PP);
     IOHi(busdev->busdev_u.spi.csnPin); // Disable
 #ifdef USE_SPI_TRANSACTION
-    spiBusTransactionInit(busdev, SPI_MODE3_POL_HIGH_EDGE_2ND, SPI_CLOCK_STANDARD); // Baro can work only on up to 10Mhz SPI bus
+    spiBusTransactionInit(busdev, SPI_MODE3_POL_HIGH_EDGE_2ND, spiCalculateDivider(LPS_MAX_SPI_CLK_HZ)); // Baro can work only on up to 10Mhz SPI bus
 #else
-    spiBusSetDivisor(busdev, SPI_CLOCK_STANDARD); // Baro can work only on up to 10Mhz SPI bus
+    spiBusSetDivisor(busdev, spiCalculateDivider(LPS_MAX_SPI_CLK_HZ)); // Baro can work only on up to 10Mhz SPI bus
 #endif
 
     uint8_t temp = 0x00;
@@ -282,12 +292,15 @@ bool lpsDetect(baroDev_t *baro)
 
     lpsReadCommand(busdev, LPS_CTRL1, &temp, 1);
 
+    baro->combined_read = true;
     baro->ut_delay = 1;
     baro->up_delay = 1000000 / 24;
     baro->start_ut = lpsNothing;
-    baro->get_ut = lpsNothing;
+    baro->get_ut = lpsNothingBool;
+    baro->read_ut = lpsNothingBool;
     baro->start_up = lpsNothing;
     baro->get_up = lpsRead;
+    baro->read_up = lpsNothingBool;
     baro->calculate = lpsCalculate;
     uint32_t timeout = millis();
     do {

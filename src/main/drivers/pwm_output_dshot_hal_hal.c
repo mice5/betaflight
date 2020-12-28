@@ -82,17 +82,17 @@ void pwmChannelDMAStart(TIM_HandleTypeDef *htim, uint32_t Channel, uint32_t *pDa
         HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC1], (uint32_t)pData, (uint32_t)&htim->Instance->CCR1, Length);
         __HAL_TIM_ENABLE_DMA(htim, TIM_DMA_CC1);
     break;
-    
+
     case TIM_CHANNEL_2:
         HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC2], (uint32_t)pData, (uint32_t)&htim->Instance->CCR2, Length);
         __HAL_TIM_ENABLE_DMA(htim, TIM_DMA_CC2);
         break;
-    
+
     case TIM_CHANNEL_3:
         HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC3], (uint32_t)pData, (uint32_t)&htim->Instance->CCR3,Length);
         __HAL_TIM_ENABLE_DMA(htim, TIM_DMA_CC3);
         break;
-    
+
     case TIM_CHANNEL_4:
         HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_CC4], (uint32_t)pData, (uint32_t)&htim->Instance->CCR4, Length);
         __HAL_TIM_ENABLE_DMA(htim, TIM_DMA_CC4);
@@ -132,11 +132,11 @@ void pwmChannelDMAStop(TIM_HandleTypeDef *htim, uint32_t Channel)
 void pwmBurstDMAStart(TIM_HandleTypeDef *htim, uint32_t BurstBaseAddress, uint32_t BurstRequestSrc, uint32_t BurstUnit, uint32_t* BurstBuffer, uint32_t BurstLength)
 {
     // Setup DMA stream
-    HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_UPDATE], (uint32_t)BurstBuffer, (uint32_t)&htim->Instance->DMAR, BurstLength); 
+    HAL_DMA_Start_IT(htim->hdma[TIM_DMA_ID_UPDATE], (uint32_t)BurstBuffer, (uint32_t)&htim->Instance->DMAR, BurstLength);
 
     // Configure burst mode DMA */
-   htim->Instance->DCR = BurstBaseAddress | BurstUnit;  
-   
+   htim->Instance->DCR = BurstBaseAddress | BurstUnit;
+
     // Enable burst mode DMA
     __HAL_TIM_ENABLE_DMA(htim, BurstRequestSrc);
 }
@@ -151,7 +151,7 @@ FAST_CODE void pwmWriteDshotInt(uint8_t index, uint16_t value)
 
     /*If there is a command ready to go overwrite the value and send that instead*/
     if (dshotCommandIsProcessing()) {
-        value = pwmGetDshotCommand(index);
+        value = dshotCommandGetCurrent(index);
         if (value) {
             motor->protocolControl.requestTelemetry = true;
         }
@@ -200,7 +200,7 @@ void pwmCompleteDshotMotorUpdate(void)
 
             // Transfer CCR1 through CCR4 for each burst
             pwmBurstDMAStart(&burstDmaTimer->timHandle,
-                    TIM_DMABASE_CCR1, TIM_DMA_UPDATE, TIM_DMABURSTLENGTH_4TRANSFERS, 
+                    TIM_DMABASE_CCR1, TIM_DMA_UPDATE, TIM_DMABURSTLENGTH_4TRANSFERS,
                     (uint32_t*)burstDmaTimer->dmaBurstBuffer, burstDmaTimer->dmaBurstLength);
         }
     } else
@@ -233,7 +233,7 @@ static void motor_DMA_IRQHandler(dmaChannelDescriptor_t* descriptor)
     }
 }
 
-void pwmDshotMotorHardwareConfig(const timerHardware_t *timerHardware, uint8_t motorIndex, motorPwmProtocolTypes_e pwmProtocolType, uint8_t output)
+bool pwmDshotMotorHardwareConfig(const timerHardware_t *timerHardware, uint8_t motorIndex, uint8_t reorderedMotorIndex, motorPwmProtocolTypes_e pwmProtocolType, uint8_t output)
 {
     dmaResource_t *dmaRef = NULL;
     uint32_t dmaChannel;
@@ -266,7 +266,7 @@ void pwmDshotMotorHardwareConfig(const timerHardware_t *timerHardware, uint8_t m
 #endif
 
     if (dmaRef == NULL) {
-        return;
+        return false;
     }
 
     motorDmaOutput_t * const motor = &dmaMotors[motorIndex];
@@ -274,12 +274,19 @@ void pwmDshotMotorHardwareConfig(const timerHardware_t *timerHardware, uint8_t m
 
     TIM_TypeDef *timer = timerHardware->tim; // "timer" is confusing; "tim"?
     const IO_t motorIO = IOGetByTag(timerHardware->tag);
+    uint8_t pupMode = (output & TIMER_OUTPUT_INVERTED) ? GPIO_PULLDOWN : GPIO_PULLUP;
+#ifdef USE_DSHOT_TELEMETRY
+    if (useDshotTelemetry) {
+        output ^= TIMER_OUTPUT_INVERTED;
+    }
+#endif
 
+    motor->iocfg = IO_CONFIG(GPIO_MODE_AF_PP, GPIO_SPEED_FREQ_VERY_HIGH, pupMode);
     const uint8_t timerIndex = getTimerIndex(timer);
     const bool configureTimer = (timerIndex == dmaMotorTimerCount - 1);
 
-    IOInit(motorIO, OWNER_MOTOR, RESOURCE_INDEX(motorIndex));
-    IOConfigGPIOAF(motorIO, IO_CONFIG(GPIO_MODE_AF_PP, GPIO_SPEED_FREQ_VERY_HIGH, GPIO_PULLDOWN), timerHardware->alternateFunction);
+    IOInit(motorIO, OWNER_MOTOR, RESOURCE_INDEX(reorderedMotorIndex));
+    IOConfigGPIOAF(motorIO, motor->iocfg, timerHardware->alternateFunction);
 
     // Configure time base
 
@@ -298,7 +305,7 @@ void pwmDshotMotorHardwareConfig(const timerHardware_t *timerHardware, uint8_t m
 
         if (result != HAL_OK) {
             /* Initialization Error */
-            return;
+            return false;
         }
     }
 
@@ -334,7 +341,7 @@ P    -    High -     High -
 
     if (result != HAL_OK) {
         /* Configuration Error */
-        return;
+        return false;
     }
 
     // DMA setup
@@ -347,7 +354,7 @@ P    -    High -     High -
 
         if (!configureTimer) {
             motor->configured = true;
-            return;
+            return false;
         }
     } else
 #endif
@@ -357,6 +364,18 @@ P    -    High -     High -
         motor->timerDmaIndex = timerDmaIndex(timerHardware->channel);
     }
 
+    dmaIdentifier_e identifier = dmaGetIdentifier(dmaRef);
+
+#ifdef USE_DSHOT_DMAR
+    if (useBurstDshot) {
+        dmaInit(identifier, OWNER_TIMUP, timerGetTIMNumber(timerHardware->tim));
+        dmaSetHandler(identifier, motor_DMA_IRQHandler, NVIC_PRIO_DSHOT_DMA, timerIndex);
+    } else
+#endif
+    {
+        dmaInit(identifier, OWNER_MOTOR, RESOURCE_INDEX(reorderedMotorIndex));
+        dmaSetHandler(identifier, motor_DMA_IRQHandler, NVIC_PRIO_DSHOT_DMA, motorIndex);
+    }
 
 #ifdef USE_DSHOT_DMAR
     if (useBurstDshot) {
@@ -367,17 +386,19 @@ P    -    High -     High -
         motor->timer->hdma_tim.Init.MemDataAlignment = DMA_MDATAALIGN_WORD ;
         motor->timer->hdma_tim.Init.Mode = DMA_NORMAL;
         motor->timer->hdma_tim.Init.Priority = DMA_PRIORITY_HIGH;
+#if !defined(STM32G4)
         motor->timer->hdma_tim.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
         motor->timer->hdma_tim.Init.PeriphBurst = DMA_PBURST_SINGLE;
         motor->timer->hdma_tim.Init.MemBurst = DMA_MBURST_SINGLE;
         motor->timer->hdma_tim.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
+#endif
 
         motor->timer->dmaBurstBuffer = &dshotBurstDmaBuffer[timerIndex][0];
         motor->timer->timHandle = motor->TimHandle;
         memset(motor->timer->dmaBurstBuffer, 0, DSHOT_DMA_BUFFER_SIZE * 4 * sizeof(uint32_t));
 
         /* Set hdma_tim instance */
-        motor->timer->hdma_tim.Instance = dmaRef;
+        motor->timer->hdma_tim.Instance = (DMA_ARCH_TYPE *)dmaRef;
         motor->timer->hdma_tim.Init.Request = dmaChannel;
 
         /* Link hdma_tim to hdma[TIM_DMA_ID_UPDATE] (update) */
@@ -396,16 +417,18 @@ P    -    High -     High -
         motor->hdma_tim.Init.MemDataAlignment = DMA_MDATAALIGN_WORD ;
         motor->hdma_tim.Init.Mode = DMA_NORMAL;
         motor->hdma_tim.Init.Priority = DMA_PRIORITY_HIGH;
+#if !defined(STM32G4)
         motor->hdma_tim.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
         motor->hdma_tim.Init.PeriphBurst = DMA_PBURST_SINGLE;
         motor->hdma_tim.Init.MemBurst = DMA_MBURST_SINGLE;
         motor->hdma_tim.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
+#endif
 
         motor->dmaBuffer = &dshotDmaBuffer[motorIndex][0];
         motor->dmaBuffer[DSHOT_DMA_BUFFER_SIZE-2] = 0; // XXX Is this necessary? -> probably.
         motor->dmaBuffer[DSHOT_DMA_BUFFER_SIZE-1] = 0; // XXX Is this necessary?
 
-        motor->hdma_tim.Instance = dmaRef;
+        motor->hdma_tim.Instance = (DMA_ARCH_TYPE *)dmaRef;
         motor->hdma_tim.Init.Request = dmaChannel;
 
         /* Link hdma_tim to hdma[x] (channelx) */
@@ -418,19 +441,7 @@ P    -    High -     High -
 
     if (result != HAL_OK) {
         /* Initialization Error */
-        return;
-    }
-
-    dmaIdentifier_e identifier = dmaGetIdentifier(dmaRef);
-#ifdef USE_DSHOT_DMAR
-    if (useBurstDshot) {
-        dmaInit(identifier, OWNER_TIMUP, timerGetTIMNumber(timerHardware->tim));
-        dmaSetHandler(identifier, motor_DMA_IRQHandler, NVIC_PRIO_DSHOT_DMA, timerIndex);
-    } else
-#endif
-    {
-        dmaInit(identifier, OWNER_MOTOR, RESOURCE_INDEX(motorIndex));
-        dmaSetHandler(identifier, motor_DMA_IRQHandler, NVIC_PRIO_DSHOT_DMA, motorIndex);
+        return false;
     }
 
     // Start the timer channel now.
@@ -444,9 +455,11 @@ P    -    High -     High -
 
     if (result != HAL_OK) {
         /* Starting PWM generation Error */
-        return;
+        return false;
     }
 
     motor->configured = true;
+
+    return true;
 }
 #endif

@@ -316,7 +316,7 @@ static SD_Error_t SD_CmdResponse(uint8_t SD_CMD, int8_t ResponseType)
 
     if(ResponseType <= 0)
     {
-        if(TimeOut == 0){
+        if (TimeOut == 0) {
             return SD_CMD_RSP_TIMEOUT;
         } else {
             return SD_OK;
@@ -890,7 +890,7 @@ SD_Error_t SD_GetCardInfo(void)
         SD_CardInfo.CardCapacity  = (SD_CardInfo.SD_csd.DeviceSize + 1) ;
         SD_CardInfo.CardCapacity *= (1 << (SD_CardInfo.SD_csd.DeviceSizeMul + 2));
         SD_CardInfo.CardBlockSize = 1 << (SD_CardInfo.SD_csd.RdBlockLen);
-        SD_CardInfo.CardCapacity *= SD_CardInfo.CardBlockSize;
+        SD_CardInfo.CardCapacity = SD_CardInfo.CardCapacity * SD_CardInfo.CardBlockSize / 512; // In 512 byte blocks
     }
     else if(SD_CardType == SD_HIGH_CAPACITY)
     {
@@ -1640,6 +1640,8 @@ bool SD_GetState(void)
 bool SD_Init(void)
 {
     SD_Error_t ErrorState;
+
+    __HAL_RCC_SDMMC1_CLK_ENABLE();
 
     // Initialize SDMMC1 peripheral interface with default configuration for SD card initialization
     MODIFY_REG(SDMMC1->CLKCR, CLKCR_CLEAR_MASK, (uint32_t) SDMMC_INIT_CLK_DIV);

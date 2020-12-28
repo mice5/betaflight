@@ -35,7 +35,7 @@
 
 #include "pg/motor.h"
 
-FAST_RAM_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
+FAST_DATA_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value, uint8_t output)
 {
@@ -108,7 +108,7 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
     *channel->ccr = 0;
 }
 
-static FAST_RAM_ZERO_INIT motorDevice_t motorPwmDevice;
+static FAST_DATA_ZERO_INIT motorDevice_t motorPwmDevice;
 
 static void pwmWriteUnused(uint8_t index, float value)
 {
@@ -144,6 +144,11 @@ bool pwmEnableMotors(void)
     return (motorPwmVTable.write != &pwmWriteUnused);
 }
 
+bool pwmIsMotorEnabled(uint8_t index)
+{
+    return motors[index].enabled;
+}
+
 static void pwmCompleteOneshotMotorUpdate(void)
 {
     for (int index = 0; index < motorPwmDevice.count; index++) {
@@ -167,8 +172,10 @@ static uint16_t pwmConvertToExternal(float motorValue)
 }
 
 static motorVTable_t motorPwmVTable = {
+    .postInit = motorPostInitNull,
     .enable = pwmEnableMotors,
     .disable = pwmDisableMotors,
+    .isMotorEnabled = pwmIsMotorEnabled,
     .shutdown = pwmShutdownPulsesForAllMotors,
     .convertExternalToMotor = pwmConvertFromExternal,
     .convertMotorToExternal = pwmConvertToExternal,
@@ -212,8 +219,9 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
     motorPwmDevice.vTable.updateComplete = useUnsyncedPwm ? motorUpdateCompleteNull : pwmCompleteOneshotMotorUpdate;
 
     for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS && motorIndex < motorCount; motorIndex++) {
-        const ioTag_t tag = motorConfig->ioTags[motorIndex];
-        const timerHardware_t *timerHardware = timerGetByTag(tag);
+        const unsigned reorderedMotorIndex = motorConfig->motorOutputReordering[motorIndex];
+        const ioTag_t tag = motorConfig->ioTags[reorderedMotorIndex];
+        const timerHardware_t *timerHardware = timerAllocate(tag, OWNER_MOTOR, RESOURCE_INDEX(reorderedMotorIndex));
 
         if (timerHardware == NULL) {
             /* not enough motors initialised for the mixer or a break in the motors */
@@ -224,7 +232,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         }
 
         motors[motorIndex].io = IOGetByTag(tag);
-        IOInit(motors[motorIndex].io, OWNER_MOTOR, RESOURCE_INDEX(motorIndex));
+        IOInit(motors[motorIndex].io, OWNER_MOTOR, RESOURCE_INDEX(reorderedMotorIndex));
 
 #if defined(STM32F1)
         IOConfigGPIO(motors[motorIndex].io, IOCFG_AF_PP);
@@ -294,7 +302,7 @@ void servoDevInit(const servoDevConfig_t *servoConfig)
 
         IOInit(servos[servoIndex].io, OWNER_SERVO, RESOURCE_INDEX(servoIndex));
 
-        const timerHardware_t *timer = timerGetByTag(tag);
+        const timerHardware_t *timer = timerAllocate(tag, OWNER_SERVO, RESOURCE_INDEX(servoIndex));
 
         if (timer == NULL) {
             /* flag failure and disable ability to arm */

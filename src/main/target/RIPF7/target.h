@@ -66,11 +66,6 @@
 #define BARO_SPI_INSTANCE       SPI4
 
 /* UPDATE */
-#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
-#define FLASH_CS_PIN         PB12
-#define FLASH_SPI_INSTANCE   SPI1
-#define USE_FLASHFS
-#define USE_FLASH_M25P16
 /* UPDATE */
 
 #define USE_VCP
@@ -112,10 +107,17 @@
 #define SPI4_NSS_PIN            PC15
 
 //FLASH
+
 #define SPI1_SCK_PIN            PA5
 #define SPI1_MISO_PIN           PA6
 #define SPI1_MOSI_PIN           PA7
 #define SPI1_NSS_PIN            PB12
+
+#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+#define FLASH_CS_PIN         SPI1_NSS_PIN
+#define FLASH_SPI_INSTANCE   SPI1
+#define USE_FLASHFS
+#define USE_FLASH_M25P16
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1
